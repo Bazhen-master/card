@@ -3,13 +3,17 @@ import { notFound } from "next/navigation";
 import CardTile from "@/components/CardTile";
 import SetupNotice from "@/components/SetupNotice";
 import { formatPrice, pluralCards } from "@/lib/format";
-import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  getSupabase,
+  isSupabaseConfigured,
+  missingSupabaseEnv,
+} from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
 export default async function DeckPage({ params }) {
   if (!isSupabaseConfigured) {
-    return <SetupNotice />;
+    return <SetupNotice missing={missingSupabaseEnv()} />;
   }
 
   const supabase = getSupabase();

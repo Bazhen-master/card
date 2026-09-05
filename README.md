@@ -32,7 +32,7 @@
    `supabase/schema.sql` и нажмите **Run**. Скрипт создаст таблицы `decks`,
    `cards`, `leads` и публичный бакет `cards` для картинок.
 3. Откройте **Project Settings → API** и скопируйте оттуда:
-   - **Project URL** → в переменную `NEXT_PUBLIC_SUPABASE_URL`
+   - **Project URL** → в переменную `SUPABASE_URL`
    - **service_role** ключ → в переменную `SUPABASE_SERVICE_ROLE_KEY`
 
 > `service_role` — секретный ключ с полным доступом к базе. Он используется
@@ -45,7 +45,7 @@
 На хостинге — раздел **Environment Variables** в Render.
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=      # Project URL из Supabase
+SUPABASE_URL=                  # Project URL из Supabase
 SUPABASE_SERVICE_ROLE_KEY=     # service_role ключ из Supabase
 ADMIN_PASSWORD=                # пароль для входа в /admin
 FUSIONBRAIN_API_KEY=           # Этап 3, пока не используется
@@ -84,7 +84,7 @@ npm run dev
 1. Зарегистрируйтесь на [render.com](https://render.com) через GitHub-аккаунт.
 2. **New → Blueprint** → выберите репозиторий `Bazhen-master/card` → **Connect**.
 3. Render покажет сервис `metaphor-cards` и попросит значения трёх переменных:
-   - `NEXT_PUBLIC_SUPABASE_URL` — Project URL из Supabase
+   - `SUPABASE_URL` — Project URL из Supabase
    - `SUPABASE_SERVICE_ROLE_KEY` — секретный ключ из Supabase
    - `ADMIN_PASSWORD` — пароль для входа в `/admin`
 
@@ -97,9 +97,9 @@ npm run dev
 Первый запрос после долгой паузы открывается на 30-50 секунд дольше: на
 бесплатном тарифе сервис засыпает без нагрузки. Дальше работает как обычно.
 
-> Переменные с префиксом `NEXT_PUBLIC_` подставляются в код на этапе сборки,
-> поэтому после изменения `NEXT_PUBLIC_SUPABASE_URL` нужен новый деплой:
-> **Manual Deploy → Deploy latest commit**.
+> Если сайт открылся, но пишет «База данных ещё не подключена» — он назовёт
+> недостающие переменные прямо на странице. Значит их нет в разделе
+> **Environment** сервиса: добавьте и сохраните, Render пересоберёт сайт сам.
 
 ### Если настраивать вручную, без Blueprint
 

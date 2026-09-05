@@ -1,6 +1,10 @@
 import DeckCard from "@/components/DeckCard";
 import SetupNotice from "@/components/SetupNotice";
-import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  getSupabase,
+  isSupabaseConfigured,
+  missingSupabaseEnv,
+} from "@/lib/supabase";
 
 // Данные берутся из БД на каждый запрос — статическая генерация не нужна.
 export const dynamic = "force-dynamic";
@@ -12,7 +16,7 @@ export default async function CatalogPage() {
     return (
       <section>
         <h1 className="mb-4 text-2xl font-semibold">Каталог готовых карт</h1>
-        <SetupNotice />
+        <SetupNotice missing={missingSupabaseEnv()} />
       </section>
     );
   }

@@ -6,7 +6,11 @@ import MoveButton from "@/components/MoveButton";
 import SetupNotice from "@/components/SetupNotice";
 import { formatPrice, pluralCards } from "@/lib/format";
 import { requireAdmin } from "@/lib/require-admin";
-import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  getSupabase,
+  isSupabaseConfigured,
+  missingSupabaseEnv,
+} from "@/lib/supabase";
 import { createDeck, deleteDeck, moveDeck } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +24,7 @@ export default async function AdminPage({ searchParams }) {
     return (
       <section>
         <AdminHeader title="Админка" />
-        <SetupNotice />
+        <SetupNotice missing={missingSupabaseEnv()} />
       </section>
     );
   }

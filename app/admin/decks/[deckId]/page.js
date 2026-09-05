@@ -6,7 +6,11 @@ import Field from "@/components/Field";
 import MoveButton from "@/components/MoveButton";
 import SetupNotice from "@/components/SetupNotice";
 import { requireAdmin } from "@/lib/require-admin";
-import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  getSupabase,
+  isSupabaseConfigured,
+  missingSupabaseEnv,
+} from "@/lib/supabase";
 import {
   createCards,
   deleteCard,
@@ -24,7 +28,7 @@ export default async function AdminDeckPage({ params, searchParams }) {
     return (
       <section>
         <AdminHeader title="Колода" backHref="/admin" backLabel="Все колоды" />
-        <SetupNotice />
+        <SetupNotice missing={missingSupabaseEnv()} />
       </section>
     );
   }

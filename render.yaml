@@ -14,7 +14,7 @@ services:
       - key: NODE_VERSION
         value: 22.11.0
       # sync: false — значения не хранятся в git, Render спросит их при создании
-      - key: NEXT_PUBLIC_SUPABASE_URL
+      - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
