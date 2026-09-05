@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import CardTile from "@/components/CardTile";
 import SetupNotice from "@/components/SetupNotice";
 import { formatPrice, pluralCards } from "@/lib/format";
+import { imageSrc } from "@/lib/storage";
 import {
   getSupabase,
   isSupabaseConfigured,
@@ -46,7 +47,7 @@ export default async function DeckPage({ params }) {
           {deck.cover_image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={deck.cover_image}
+              src={imageSrc(deck.cover_image)}
               alt={deck.title}
               className="aspect-[3/4] w-full object-cover"
             />

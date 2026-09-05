@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatPrice, pluralCards } from "@/lib/format";
+import { imageSrc } from "@/lib/storage";
 
 export default function DeckCard({ deck, cardsCount }) {
   return (
@@ -9,11 +10,11 @@ export default function DeckCard({ deck, cardsCount }) {
     >
       <div className="aspect-[3/4] bg-cardBg">
         {deck.cover_image ? (
-          // Обычный img, а не next/image: домен Storage задаётся переменной
-          // окружения и заранее не известен для remotePatterns.
+          // Обычный img, а не next/image: оптимизатор Next пришлось бы отдельно
+          // настраивать, а картинка и так идёт через наш /api/image.
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={deck.cover_image}
+            src={imageSrc(deck.cover_image)}
             alt={deck.title}
             className="h-full w-full object-cover"
           />

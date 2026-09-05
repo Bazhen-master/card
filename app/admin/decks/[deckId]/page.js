@@ -6,6 +6,7 @@ import Field from "@/components/Field";
 import MoveButton from "@/components/MoveButton";
 import SetupNotice from "@/components/SetupNotice";
 import { requireAdmin } from "@/lib/require-admin";
+import { imageSrc } from "@/lib/storage";
 import {
   getSupabase,
   isSupabaseConfigured,
@@ -107,7 +108,7 @@ export default async function AdminDeckPage({ params, searchParams }) {
               {deck.cover_image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={deck.cover_image}
+                  src={imageSrc(deck.cover_image)}
                   alt=""
                   className="h-24 w-[4.5rem] object-cover"
                 />
@@ -203,7 +204,7 @@ export default async function AdminDeckPage({ params, searchParams }) {
                 <div className="h-28 w-[5.25rem] shrink-0 overflow-hidden rounded bg-cardBg">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={card.image_url}
+                    src={imageSrc(card.image_url)}
                     alt=""
                     className="h-28 w-[5.25rem] object-cover"
                   />

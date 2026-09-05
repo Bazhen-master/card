@@ -5,6 +5,7 @@ import Field from "@/components/Field";
 import MoveButton from "@/components/MoveButton";
 import SetupNotice from "@/components/SetupNotice";
 import { formatPrice, pluralCards } from "@/lib/format";
+import { imageSrc } from "@/lib/storage";
 import { requireAdmin } from "@/lib/require-admin";
 import {
   getSupabase,
@@ -62,7 +63,7 @@ export default async function AdminPage({ searchParams }) {
                   {deck.cover_image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={deck.cover_image}
+                      src={imageSrc(deck.cover_image)}
                       alt=""
                       className="h-full w-full object-cover"
                     />

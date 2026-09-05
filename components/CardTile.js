@@ -1,4 +1,5 @@
 import { formatPrice } from "@/lib/format";
+import { imageSrc } from "@/lib/storage";
 
 export default function CardTile({ card, showPrice = false }) {
   return (
@@ -6,7 +7,7 @@ export default function CardTile({ card, showPrice = false }) {
       <div className="aspect-[3/4] bg-cardBg">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={card.image_url}
+          src={imageSrc(card.image_url)}
           alt={card.text || "Метафорическая карта"}
           className="h-full w-full object-cover"
         />
