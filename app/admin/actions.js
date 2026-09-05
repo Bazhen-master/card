@@ -21,7 +21,9 @@ async function finish(path, work) {
   }
 
   revalidatePath(path);
-  revalidatePath("/catalog");
+  // "layout" — чтобы обновилась и /catalog, и страницы отдельных колод
+  // /catalog/[deckId]: без этого правки видны в списке, но не внутри колоды.
+  revalidatePath("/catalog", "layout");
   redirect(message ? `${path}?error=${encodeURIComponent(message)}` : `${path}?ok=1`);
 }
 
