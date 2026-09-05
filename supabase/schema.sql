@@ -48,6 +48,24 @@ create table if not exists public.leads (
   created_at  timestamptz not null default now()
 );
 
+-- ---------------------------------------------------------- generations ---
+-- Журнал генераций (Этап 3). По нему считается лимит: сколько карт посетитель
+-- сгенерировал за сутки. Адрес не хранится — только его хеш, для лимита
+-- отпечатка достаточно.
+create table if not exists public.generations (
+  id          uuid primary key default gen_random_uuid(),
+  session_id  text not null,
+  ip_hash     text,
+  card_id     uuid references public.cards(id) on delete set null,
+  prompt      text,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists generations_session_idx
+  on public.generations (session_id, created_at desc);
+create index if not exists generations_ip_idx
+  on public.generations (ip_hash, created_at desc);
+
 -- ------------------------------------------------------------------ RLS ---
 -- Включаем защиту и НЕ создаём политик: сайт ходит в базу с service-role
 -- ключом, который RLS обходит. Анонимный (публичный) ключ при этом не даёт
@@ -55,6 +73,7 @@ create table if not exists public.leads (
 alter table public.decks enable row level security;
 alter table public.cards enable row level security;
 alter table public.leads enable row level security;
+alter table public.generations enable row level security;
 
 -- -------------------------------------------------------------- storage ---
 -- Публичный бакет для картинок карт и обложек колод.
