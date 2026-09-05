@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function HomePage() {
   return (
     <section className="text-center space-y-6">
@@ -7,18 +9,18 @@ export default function HomePage() {
         с помощью нейросети.
       </p>
       <div className="flex justify-center gap-4">
-        <a
+        <Link
           href="/catalog"
           className="px-5 py-2 rounded-lg bg-accent text-white hover:opacity-90"
         >
           Смотреть каталог
-        </a>
-        <a
+        </Link>
+        <Link
           href="/generate"
           className="px-5 py-2 rounded-lg border border-accent text-accent hover:bg-accent/10"
         >
           Сгенерировать карту
-        </a>
+        </Link>
       </div>
     </section>
   );
