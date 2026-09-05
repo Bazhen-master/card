@@ -1,0 +1,22 @@
+# Blueprint для Render: описывает сервис целиком, чтобы не настраивать руками.
+# Render → New → Blueprint → выбрать этот репозиторий.
+services:
+  - type: web
+    name: metaphor-cards
+    runtime: node
+    plan: free
+    region: frankfurt   # рядом с базой Supabase во Франкфурте
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22.11.0
+      # sync: false — значения не хранятся в git, Render спросит их при создании
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
