@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import {
   ADMIN_COOKIE,
   ADMIN_SESSION_MAX_AGE,
   safeRedirectPath,
   sessionToken,
 } from "@/lib/auth";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request) {
   const form = await request.formData();
@@ -13,13 +13,11 @@ export async function POST(request) {
   const expected = process.env.ADMIN_PASSWORD;
 
   if (!expected || password !== expected) {
-    const back = new URL("/admin/login", request.url);
-    back.searchParams.set("from", from);
-    back.searchParams.set("error", "1");
-    return NextResponse.redirect(back, { status: 303 });
+    const params = new URLSearchParams({ from, error: "1" });
+    return redirectTo(`/admin/login?${params}`, { status: 303 });
   }
 
-  const response = NextResponse.redirect(new URL(from, request.url), { status: 303 });
+  const response = redirectTo(from, { status: 303 });
   response.cookies.set(ADMIN_COOKIE, await sessionToken(), {
     httpOnly: true,
     sameSite: "lax",
