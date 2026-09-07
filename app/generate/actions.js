@@ -15,6 +15,8 @@ import {
   remainingGenerations,
 } from "@/lib/generation-limit";
 import { currentProfile } from "@/lib/account";
+import { GENERATION_PRICE, addEntry, balanceOf } from "@/lib/balance";
+import { formatPrice } from "@/lib/format";
 import { uploadImageBuffer, uploadOriginalBuffer } from "@/lib/storage";
 import { PREVIEW_UPLOAD, makePreview } from "@/lib/watermark";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -35,9 +37,43 @@ async function makeWatermarkedPreview(supabase, image) {
   }
 }
 
+// Плата берётся до генерации: рисование стоит денег поставщику, и списывать
+// после — значит рисовать в долг. Если что-то сорвалось, строка списания
+// удаляется целиком: показывать посетителю пару «списали — вернули» за
+// неслучившуюся картинку незачем.
+async function chargeForGeneration(supabase, profile) {
+  if (!profile) {
+    throw new Error(
+      "Бесплатные генерации на сегодня закончились. Войдите в учётную запись — следующая будет стоить " +
+        formatPrice(GENERATION_PRICE) +
+        " с баланса."
+    );
+  }
+
+  const balance = await balanceOf(supabase, profile.id);
+  if (balance < GENERATION_PRICE) {
+    throw new Error(
+      "Бесплатные генерации на сегодня закончились. Следующая стоит " +
+        formatPrice(GENERATION_PRICE) +
+        ", на балансе " +
+        formatPrice(balance) +
+        " — пополнение пока делает владелица сайта."
+    );
+  }
+
+  return addEntry(supabase, {
+    profile: profile.id,
+    delta: -GENERATION_PRICE,
+    kind: "generation",
+    comment: "оплата генерации",
+  });
+}
+
 export async function generateCard(formData) {
   let cardId = null;
   let message = null;
+  let chargeId = null;
+  let refundClient = null;
 
   try {
     if (!isSupabaseConfigured || !isImageProviderConfigured) {
@@ -65,9 +101,9 @@ export async function generateCard(formData) {
     const ip = ipHash();
     const profile = await currentProfile();
 
-    if ((await remainingGenerations(supabase, { session, ip, profile: profile?.id })) <= 0) {
-      throw new Error("Лимит генераций на сегодня исчерпан. Попробуйте завтра.");
-    }
+    refundClient = supabase;
+    const free = await remainingGenerations(supabase, { session, ip, profile: profile?.id });
+    if (free <= 0) chargeId = await chargeForGeneration(supabase, profile);
 
     const image = await generateImage({ prompt, style, format });
 
@@ -102,8 +138,18 @@ export async function generateCard(formData) {
     if (logError) {
       throw new Error(`Карта создана, но счётчик генераций не обновился: ${logError.message}`);
     }
+
+    // Списание привязываем к карте: по журналу видно, за что деньги.
+    if (chargeId) {
+      await supabase.from("balance_entries").update({ card_id: cardId }).eq("id", chargeId);
+    }
   } catch (error) {
     message = error?.message || "Не удалось сгенерировать карту";
+
+    // Заплатили, но картинки нет — возвращаем деньги, удаляя строку списания.
+    if (chargeId && refundClient) {
+      await refundClient.from("balance_entries").delete().eq("id", chargeId);
+    }
   }
 
   revalidatePath("/generate");

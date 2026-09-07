@@ -25,6 +25,8 @@ import {
   missingSupabaseEnv,
 } from "@/lib/supabase";
 import { currentProfile } from "@/lib/account";
+import { GENERATION_PRICE, balanceOf } from "@/lib/balance";
+import { formatPrice } from "@/lib/format";
 import { originalSrc } from "@/lib/storage";
 import { generateCard } from "./actions";
 
@@ -90,6 +92,11 @@ export default async function GeneratePage({ searchParams }) {
     ip: ipHash(),
     profile: profile?.id,
   });
+
+  // Бесплатные кончились — дальше за баллы, и только у вошедшего: у гостя
+  // баланса нет и быть не может.
+  const balance = profile ? await balanceOf(supabase, profile.id) : 0;
+  const payable = left <= 0 && profile && balance >= GENERATION_PRICE;
 
   const error = searchParams?.error;
   const justCreatedId = searchParams?.card;
@@ -196,14 +203,36 @@ export default async function GeneratePage({ searchParams }) {
           </select>
         </Field>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <SubmitButton pendingLabel="Рисую, до минуты…">
-            Сгенерировать
+            {payable
+              ? `Сгенерировать за ${formatPrice(GENERATION_PRICE)}`
+              : "Сгенерировать"}
           </SubmitButton>
           <span className="text-sm text-gray-500">
-            {left > 0
-              ? `Осталось генераций сегодня: ${left} из ${PER_SESSION_PER_DAY}`
-              : "Лимит на сегодня исчерпан — возвращайтесь завтра"}
+            {left > 0 ? (
+              `Осталось бесплатных сегодня: ${left} из ${PER_SESSION_PER_DAY}`
+            ) : payable ? (
+              <>
+                Бесплатные на сегодня закончились. Следующая —{" "}
+                {formatPrice(GENERATION_PRICE)} с баланса, на нём{" "}
+                {formatPrice(balance)}.
+              </>
+            ) : profile ? (
+              <>
+                Бесплатные на сегодня закончились. Следующая стоит{" "}
+                {formatPrice(GENERATION_PRICE)}, на балансе{" "}
+                {formatPrice(balance)} — пополнение пока делает владелица сайта.
+              </>
+            ) : (
+              <>
+                Бесплатные на сегодня закончились.{" "}
+                <Link href="/login?from=%2Fgenerate" className="text-accent hover:underline">
+                  Войдите
+                </Link>
+                , чтобы рисовать дальше за {formatPrice(GENERATION_PRICE)}.
+              </>
+            )}
           </span>
         </div>
         {!profile && (
