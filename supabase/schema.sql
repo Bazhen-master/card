@@ -127,6 +127,78 @@ alter table public.sessions enable row level security;
 alter table public.cards
   add column if not exists preview_url text;
 
+-- ----------------------------------------------------- галерея (6.3) ---
+-- Путь карты в галерею: private (лежит в кабинете) → pending (отправлена на
+-- проверку) → listed (опубликована) либо rejected (отклонена с причиной).
+-- Проверяет владелица сайта в /admin/moderation: за чужие фотографии и
+-- запрещённое отвечает площадка, а не автор.
+do $$
+begin
+  create type public.card_status as enum ('private', 'pending', 'listed', 'rejected');
+exception
+  when duplicate_object then null;
+end
+$$;
+
+alter table public.cards
+  add column if not exists status public.card_status not null default 'private';
+alter table public.cards
+  add column if not exists reject_reason text;
+alter table public.cards
+  add column if not exists listed_at timestamptz;
+
+create index if not exists cards_status_idx on public.cards (status, listed_at desc);
+
+-- ВНИМАНИЕ: цены (decks.price, cards.price) хранятся В КОПЕЙКАХ. Так решено на
+-- Этапе 6.3: комиссия площадки в 30 % с карты за 3 ₽ в целых рублях не
+-- считается. В формах и на витрине показываются рубли. Перевод существующих
+-- цен из рублей в копейки выполнен разово 07.09.2026 и здесь намеренно НЕ
+-- повторяется: повторный запуск умножил бы их ещё раз.
+
+-- ------------------------------------------- покупки и баланс (6.4) ---
+-- Таблицы созданы заранее, вместе со схемой галереи, чтобы не гонять
+-- владелицу сайта в SQL-редактор второй раз. Кодом они начнут пользоваться
+-- на Этапе 6.4.
+create table if not exists public.purchases (
+  id          uuid primary key default gen_random_uuid(),
+  buyer_id    uuid not null references public.profiles(id) on delete cascade,
+  card_id     uuid not null references public.cards(id) on delete cascade,
+  price       integer not null,          -- копейки, цена на момент покупки
+  created_at  timestamptz not null default now(),
+  unique (buyer_id, card_id)             -- дважды одно и то же не продаём
+);
+
+create index if not exists purchases_buyer_idx on public.purchases (buyer_id, created_at desc);
+create index if not exists purchases_card_idx on public.purchases (card_id);
+
+do $$
+begin
+  create type public.balance_kind as enum
+    ('topup', 'purchase', 'sale', 'generation', 'refund', 'admin');
+exception
+  when duplicate_object then null;
+end
+$$;
+
+-- Журнал движения баланса — источник правды. Отдельного числа «остаток» нет
+-- намеренно: баланс равен сумме delta, и расхождение «на счету 12 ₽, а по
+-- операциям 9 ₽» становится невозможным.
+create table if not exists public.balance_entries (
+  id          uuid primary key default gen_random_uuid(),
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  delta       integer not null,          -- копейки, со знаком
+  kind        public.balance_kind not null,
+  card_id     uuid references public.cards(id) on delete set null,
+  comment     text,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists balance_profile_idx
+  on public.balance_entries (profile_id, created_at desc);
+
+alter table public.purchases enable row level security;
+alter table public.balance_entries enable row level security;
+
 -- -------------------------------------------------------------- storage ---
 -- Публичный бакет для картинок карт и обложек колод.
 insert into storage.buckets (id, name, public)

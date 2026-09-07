@@ -5,11 +5,14 @@ import { redirect } from "next/navigation";
 import {
   adoptAnonymousHistory,
   createAccount,
+  currentProfile,
   endSession,
   signIn,
   startSession,
 } from "@/lib/account";
 import { safeRedirectPath } from "@/lib/auth";
+import { MIN_CARD_PRICE, formatPrice, toKopecks } from "@/lib/format";
+import { getSupabase } from "@/lib/supabase";
 
 // Ошибку возвращаем на ту же форму адресной строкой, вместе с уже введённой
 // почтой: заставлять набирать её заново из-за опечатки в пароле — плохо.
@@ -66,6 +69,94 @@ export async function loginAction(formData) {
 
   revalidatePath("/", "layout");
   redirect(from);
+}
+
+// Общая обёртка для действий в кабинете: результат показывается на той же
+// странице, без клиентского JS — как и в админке.
+async function inAccount(work) {
+  let message = null;
+
+  try {
+    const profile = await currentProfile();
+    if (!profile) throw new Error("Сначала войдите в учётную запись");
+    await work(getSupabase(), profile);
+  } catch (error) {
+    message = error?.message || "Не удалось выполнить действие";
+  }
+
+  revalidatePath("/account");
+  redirect(message ? `/account?error=${encodeURIComponent(message)}` : "/account?ok=1");
+}
+
+// Своя карта, и только своя: номер карты приходит из формы, а форму можно
+// подделать.
+async function ownCard(supabase, profile, formData) {
+  const id = String(formData.get("card") || "");
+  const { data: card } = await supabase
+    .from("cards")
+    .select("id, owner_id, preview_url, status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!card || card.owner_id !== profile.id) {
+    throw new Error("Карта не найдена среди ваших");
+  }
+  return card;
+}
+
+export async function publishCardAction(formData) {
+  await inAccount(async (supabase, profile) => {
+    const card = await ownCard(supabase, profile, formData);
+
+    // Без превью карта уйдёт в галерею без водяного знака — то есть даром.
+    if (!card.preview_url) {
+      throw new Error(
+        "У этой карты нет превью с водяным знаком — в галерею её пустить нельзя. Нарисуйте карту заново."
+      );
+    }
+
+    const raw = String(formData.get("price") || "").trim().replace(",", ".");
+    const price = toKopecks(Number.parseFloat(raw));
+    if (!Number.isFinite(price) || price < MIN_CARD_PRICE) {
+      throw new Error(`Цена не может быть меньше ${formatPrice(MIN_CARD_PRICE)}`);
+    }
+
+    const { error } = await supabase
+      .from("cards")
+      .update({ status: "pending", price, reject_reason: null })
+      .eq("id", card.id);
+    if (error) throw new Error(error.message);
+  });
+}
+
+export async function withdrawCardAction(formData) {
+  await inAccount(async (supabase, profile) => {
+    const card = await ownCard(supabase, profile, formData);
+
+    const { error } = await supabase
+      .from("cards")
+      .update({ status: "private", listed_at: null })
+      .eq("id", card.id);
+    if (error) throw new Error(error.message);
+
+    // Карта уходит с витрины — обновляем и её, и главную с каруселью.
+    revalidatePath("/gallery", "layout");
+    revalidatePath("/");
+  });
+}
+
+export async function saveNameAction(formData) {
+  await inAccount(async (supabase, profile) => {
+    const name = String(formData.get("display_name") || "").trim().slice(0, 40);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ display_name: name || null })
+      .eq("id", profile.id);
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/gallery", "layout");
+  });
 }
 
 export async function logoutAction() {

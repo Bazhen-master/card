@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { toKopecks } from "@/lib/format";
 import { requireAdmin } from "@/lib/require-admin";
 import { removeImages, uploadImage } from "@/lib/storage";
 import { getSupabase } from "@/lib/supabase";
@@ -27,6 +28,53 @@ async function finish(path, work) {
   redirect(message ? `${path}?error=${encodeURIComponent(message)}` : `${path}?ok=1`);
 }
 
+// --------------------------------------------------------- модерация ----
+// Карту в галерею пускает владелица сайта: за чужие фотографии и запрещённый
+// контент отвечает площадка.
+export async function approveCard(formData) {
+  await finish("/admin/moderation", async () => {
+    const id = String(formData.get("id") || "");
+    const supabase = getSupabase();
+
+    const { data: card } = await supabase
+      .from("cards")
+      .select("id, preview_url, price")
+      .eq("id", id)
+      .maybeSingle();
+    if (!card) throw new Error("Карта не найдена");
+    if (!card.preview_url) {
+      throw new Error("У карты нет превью с водяным знаком — публиковать нельзя");
+    }
+
+    const { error } = await supabase
+      .from("cards")
+      .update({ status: "listed", listed_at: new Date().toISOString(), reject_reason: null })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/gallery", "layout");
+    revalidatePath("/");
+  });
+}
+
+export async function rejectCard(formData) {
+  await finish("/admin/moderation", async () => {
+    const id = String(formData.get("id") || "");
+    const reason = String(formData.get("reason") || "").trim();
+    if (!reason) throw new Error("Напишите причину — автор должен понять, что исправить");
+
+    const supabase = getSupabase();
+    const { error } = await supabase
+      .from("cards")
+      .update({ status: "rejected", reject_reason: reason, listed_at: null })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/gallery", "layout");
+    revalidatePath("/");
+  });
+}
+
 function requiredText(formData, field, label) {
   const value = String(formData.get(field) || "").trim();
   if (!value) throw new Error(`Поле «${label}» обязательно`);
@@ -38,14 +86,15 @@ function optionalText(formData, field) {
   return value || null;
 }
 
+// В форме цена в рублях, в базе — в копейках (см. lib/format.js).
 function parsePrice(formData, field, { fallback = null } = {}) {
-  const raw = String(formData.get(field) || "").trim();
+  const raw = String(formData.get(field) || "").trim().replace(",", ".");
   if (!raw) return fallback;
-  const value = Number.parseInt(raw, 10);
-  if (Number.isNaN(value) || value < 0) {
-    throw new Error("Цена должна быть неотрицательным целым числом");
+  const rubles = Number.parseFloat(raw);
+  if (Number.isNaN(rubles) || rubles < 0) {
+    throw new Error("Цена должна быть неотрицательным числом");
   }
-  return value;
+  return toKopecks(rubles);
 }
 
 async function nextSortOrder(supabase, table, deckId) {

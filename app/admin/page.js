@@ -39,10 +39,29 @@ export default async function AdminPage({ searchParams }) {
 
   const list = decks ?? [];
 
+  // Счётчик очереди прямо в админке: иначе про карты, ждущие проверки, легко
+  // забыть — автор ждёт, а витрина стоит пустая.
+  const { count: pendingCount } = await supabase
+    .from("cards")
+    .select("id", { count: "exact" })
+    .eq("status", "pending")
+    .limit(1);
+
   return (
     <section className="space-y-10">
       <AdminHeader title="Админка" />
       <Banner ok={searchParams?.ok} error={searchParams?.error} />
+
+      <p className="text-sm">
+        <Link href="/admin/moderation" className="text-accent hover:underline">
+          Модерация галереи
+        </Link>
+        {pendingCount > 0 && (
+          <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
+            на проверке: {pendingCount}
+          </span>
+        )}
+      </p>
 
       {error && (
         <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -144,7 +163,7 @@ export default async function AdminPage({ searchParams }) {
               name="price"
               type="number"
               min="0"
-              step="1"
+              step="0.1"
               defaultValue={0}
               className="w-full rounded-lg border border-gray-300 px-3 py-2"
             />

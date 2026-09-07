@@ -5,6 +5,7 @@ import Banner from "@/components/Banner";
 import Field from "@/components/Field";
 import MoveButton from "@/components/MoveButton";
 import SetupNotice from "@/components/SetupNotice";
+import { toRubles } from "@/lib/format";
 import { requireAdmin } from "@/lib/require-admin";
 import { imageSrc } from "@/lib/storage";
 import {
@@ -97,8 +98,8 @@ export default async function AdminDeckPage({ params, searchParams }) {
               name="price"
               type="number"
               min="0"
-              step="1"
-              defaultValue={deck.price ?? 0}
+              step="0.1"
+              defaultValue={toRubles(deck.price)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2"
             />
           </Field>
@@ -173,7 +174,7 @@ export default async function AdminDeckPage({ params, searchParams }) {
               name="price"
               type="number"
               min="0"
-              step="1"
+              step="0.1"
               className="w-full rounded-lg border border-gray-300 px-3 py-2"
             />
           </Field>
@@ -227,8 +228,8 @@ export default async function AdminDeckPage({ params, searchParams }) {
                         name="price"
                         type="number"
                         min="0"
-                        step="1"
-                        defaultValue={card.price ?? ""}
+                        step="0.1"
+                        defaultValue={card.price === null ? "" : toRubles(card.price)}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2"
                       />
                     </Field>

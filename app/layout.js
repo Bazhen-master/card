@@ -19,6 +19,7 @@ export default function RootLayout({ children }) {
               Метафорические карты
             </Link>
             <Link href="/catalog" className="hover:text-accent">Каталог</Link>
+            <Link href="/gallery" className="hover:text-accent">Галерея</Link>
             <Link href="/generate" className="hover:text-accent">Сгенерировать карту</Link>
             <Link href="/account" className="ml-auto hover:text-accent">Кабинет</Link>
             <Link href="/admin" className="text-gray-400 hover:text-accent">Админка</Link>
