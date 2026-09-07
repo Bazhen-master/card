@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 import {
   STYLES,
   generateImage,
-  isFusionBrainConfigured,
-} from "@/lib/fusionbrain";
+  isImageProviderConfigured,
+} from "@/lib/image-provider";
 import {
   ensureSessionId,
   generationsTableReady,
@@ -23,7 +23,7 @@ export async function generateCard(formData) {
   let message = null;
 
   try {
-    if (!isSupabaseConfigured || !isFusionBrainConfigured) {
+    if (!isSupabaseConfigured || !isImageProviderConfigured) {
       throw new Error("Генерация ещё не настроена: не заданы ключи доступа");
     }
 

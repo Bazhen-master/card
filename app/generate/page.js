@@ -3,10 +3,12 @@ import Field from "@/components/Field";
 import SetupNotice from "@/components/SetupNotice";
 import SubmitButton from "@/components/SubmitButton";
 import {
+  PROVIDER_KEYS_URL,
+  PROVIDER_TITLE,
   STYLES,
-  isFusionBrainConfigured,
-  missingFusionBrainEnv,
-} from "@/lib/fusionbrain";
+  isImageProviderConfigured,
+  missingImageProviderEnv,
+} from "@/lib/image-provider";
 import {
   PER_SESSION_PER_DAY,
   generationsTableReady,
@@ -38,20 +40,20 @@ export default async function GeneratePage({ searchParams }) {
     );
   }
 
-  if (!isFusionBrainConfigured) {
+  if (!isImageProviderConfigured) {
     return (
       <section className="space-y-4">
         {heading}
         <SetupNotice
-          missing={missingFusionBrainEnv()}
+          missing={missingImageProviderEnv()}
           title="Генерация ещё не подключена"
         >
           <p>
-            Ключи выдаются в личном кабинете{" "}
-            <a className="underline" href="https://fusionbrain.ai/keys/">
-              fusionbrain.ai
+            Карты рисует {PROVIDER_TITLE}. Ключ выдаётся в личном кабинете{" "}
+            <a className="underline" href={PROVIDER_KEYS_URL}>
+              {new URL(PROVIDER_KEYS_URL).host}
             </a>{" "}
-            и добавляются в переменные окружения на хостинге. Подробности — в
+            и добавляется в переменные окружения на хостинге. Подробности — в
             README, раздел «Генерация карт».
           </p>
         </SetupNotice>
