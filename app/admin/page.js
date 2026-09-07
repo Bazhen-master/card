@@ -52,7 +52,10 @@ export default async function AdminPage({ searchParams }) {
       <AdminHeader title="Админка" />
       <Banner ok={searchParams?.ok} error={searchParams?.error} />
 
-      <p className="text-sm">
+      <p className="flex flex-wrap items-center gap-4 text-sm">
+        <Link href="/admin/users" className="text-accent hover:underline">
+          Пользователи и баланс
+        </Link>
         <Link href="/admin/moderation" className="text-accent hover:underline">
           Модерация галереи
         </Link>

@@ -11,6 +11,7 @@ import {
   withdrawCardAction,
 } from "./actions";
 import { currentProfile } from "@/lib/account";
+import { balanceOf } from "@/lib/balance";
 import { MIN_CARD_PRICE, formatPrice, toRubles } from "@/lib/format";
 import { originalSrc } from "@/lib/storage";
 import {
@@ -47,6 +48,23 @@ export default async function AccountPage({ searchParams }) {
 
   const mine = cards ?? [];
 
+  const balance = await balanceOf(supabase, profile.id);
+
+  const { data: entries } = await supabase
+    .from("balance_entries")
+    .select("id, delta, kind, comment, created_at")
+    .eq("profile_id", profile.id)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const { data: purchases } = await supabase
+    .from("purchases")
+    .select("id, price, created_at, cards(id, image_url, preview_url, text)")
+    .eq("buyer_id", profile.id)
+    .order("created_at", { ascending: false });
+
+  const bought = (purchases ?? []).filter((row) => row.cards);
+
   return (
     <section className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -65,6 +83,15 @@ export default async function AccountPage({ searchParams }) {
       </div>
 
       <Banner ok={searchParams?.ok} error={searchParams?.error} />
+
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <p className="text-sm text-gray-500">Баланс</p>
+        <p className="text-2xl font-medium text-accent">{formatPrice(balance)}</p>
+        <p className="mt-1 text-xs text-gray-400">
+          Баллы тратятся на карты из галереи. Пополнение пока делает владелица
+          сайта вручную — напишите ей. Продали свою карту — деньги придут сюда.
+        </p>
+      </div>
 
       <form
         action={saveNameAction}
@@ -91,6 +118,55 @@ export default async function AccountPage({ searchParams }) {
           Сохранить
         </button>
       </form>
+
+      {bought.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="font-medium">Купленные карты</h2>
+          <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-4">
+            {bought.map((row) => (
+              <div key={row.id} className="space-y-1">
+                <CardTile
+                  card={row.cards}
+                  ratio="auto"
+                  src={originalSrc(row.cards)}
+                />
+                <a
+                  href={`/api/original/${row.cards.id}?download`}
+                  className="block text-center text-xs text-gray-500 hover:text-accent"
+                >
+                  Скачать оригинал
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(entries ?? []).length > 0 && (
+        <div className="space-y-3">
+          <h2 className="font-medium">Операции</h2>
+          <ul className="divide-y divide-gray-200 rounded-xl border border-gray-200 bg-white text-sm">
+            {(entries ?? []).map((entry) => (
+              <li key={entry.id} className="flex items-baseline justify-between gap-4 p-3">
+                <span className="text-gray-700">
+                  {KINDS[entry.kind] || entry.kind}
+                  {entry.comment && (
+                    <span className="text-gray-400"> · {entry.comment}</span>
+                  )}
+                </span>
+                <span
+                  className={
+                    entry.delta < 0 ? "shrink-0 text-gray-500" : "shrink-0 text-green-700"
+                  }
+                >
+                  {entry.delta > 0 ? "+" : "−"}
+                  {formatPrice(Math.abs(entry.delta))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="space-y-3">
         <div className="flex items-baseline justify-between">
@@ -135,6 +211,15 @@ export default async function AccountPage({ searchParams }) {
     </section>
   );
 }
+
+const KINDS = {
+  topup: "Пополнение",
+  purchase: "Покупка карты",
+  sale: "Продажа карты",
+  generation: "Генерация карты",
+  refund: "Возврат",
+  admin: "Корректировка",
+};
 
 // Что можно сделать с картой, зависит от того, где она сейчас в пути
 // «кабинет → проверка → галерея».

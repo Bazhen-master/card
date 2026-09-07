@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { currentProfile } from "@/lib/account";
 import { ADMIN_COOKIE, sessionToken } from "@/lib/auth";
+import { hasPurchased } from "@/lib/balance";
 import { readSessionId } from "@/lib/generation-limit";
 import { downloadCardImage } from "@/lib/storage";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -22,6 +23,9 @@ async function maySee(supabase, card) {
   const profile = await currentProfile();
   if (profile && card.owner_id === profile.id) return true;
 
+  // Покупатель: за карту заплачено, значит она открыта без знака.
+  if (profile && (await hasPurchased(supabase, profile.id, card.id))) return true;
+
   // Гость без учётной записи: карта его, если она нарисована в его сессии.
   const session = readSessionId();
   if (session && !card.owner_id) {
@@ -34,7 +38,6 @@ async function maySee(supabase, card) {
     if (data && data.length > 0) return true;
   }
 
-  // Покупатели добавятся здесь на Этапе 6.4, когда появится таблица purchases.
   return isAdmin();
 }
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { addEntry } from "@/lib/balance";
 import { toKopecks } from "@/lib/format";
 import { requireAdmin } from "@/lib/require-admin";
 import { removeImages, uploadImage } from "@/lib/storage";
@@ -26,6 +27,48 @@ async function finish(path, work) {
   // /catalog/[deckId]: без этого правки видны в списке, но не внутри колоды.
   revalidatePath("/catalog", "layout");
   redirect(message ? `${path}?error=${encodeURIComponent(message)}` : `${path}?ok=1`);
+}
+
+// ----------------------------------------------------------- баланс -----
+// Пополнение вручную: платёжной системы пока нет, деньги на баланс кладёт
+// владелица сайта после перевода. Списание тем же действием — отрицательной
+// суммой.
+export async function adjustBalance(formData) {
+  await finish("/admin/users", async () => {
+    const profile = String(formData.get("profile") || "");
+    const raw = String(formData.get("amount") || "").trim().replace(",", ".");
+    const comment = String(formData.get("comment") || "").trim() || null;
+
+    const rubles = Number.parseFloat(raw);
+    if (!Number.isFinite(rubles) || rubles === 0) {
+      throw new Error("Укажите сумму — положительную для пополнения, отрицательную для списания");
+    }
+
+    const supabase = getSupabase();
+    await addEntry(supabase, {
+      profile,
+      delta: toKopecks(rubles),
+      kind: rubles > 0 ? "topup" : "admin",
+      comment,
+    });
+  });
+}
+
+export async function toggleBlock(formData) {
+  await finish("/admin/users", async () => {
+    const id = String(formData.get("profile") || "");
+    const blocked = String(formData.get("blocked") || "") === "1";
+
+    const supabase = getSupabase();
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_blocked: !blocked })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+
+    // Заблокированный не должен доходить до страниц по старой cookie.
+    if (!blocked) await supabase.from("sessions").delete().eq("profile_id", id);
+  });
 }
 
 // --------------------------------------------------------- модерация ----
