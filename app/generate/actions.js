@@ -15,10 +15,25 @@ import {
   remainingGenerations,
 } from "@/lib/generation-limit";
 import { currentProfile } from "@/lib/account";
-import { uploadImageBuffer } from "@/lib/storage";
+import { uploadImageBuffer, uploadOriginalBuffer } from "@/lib/storage";
+import { PREVIEW_UPLOAD, makePreview } from "@/lib/watermark";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 const MAX_PROMPT = 500;
+
+// Превью нужно витрине, а не самому посетителю: свою карту он видит целой.
+// Поэтому осечка водяного знака не должна отменять генерацию, за которую уже
+// заплачено, — карта сохраняется, а причина уходит в лог хостинга. Без превью
+// карту нельзя будет выставить в галерею, и это правильное поведение.
+async function makeWatermarkedPreview(supabase, image) {
+  try {
+    const preview = await makePreview(image);
+    return await uploadImageBuffer(supabase, preview, PREVIEW_UPLOAD);
+  } catch (error) {
+    console.error("Превью с водяным знаком не получилось:", error?.message);
+    return null;
+  }
+}
 
 export async function generateCard(formData) {
   let cardId = null;
@@ -55,12 +70,16 @@ export async function generateCard(formData) {
     }
 
     const image = await generateImage({ prompt, style, format });
-    const imageUrl = await uploadImageBuffer(supabase, image);
+
+    // Оригинал — в закрытый бакет, превью со знаком — в публичный.
+    const imageUrl = await uploadOriginalBuffer(supabase, image);
+    const previewUrl = await makeWatermarkedPreview(supabase, image);
 
     const { data: card, error } = await supabase
       .from("cards")
       .insert({
         image_url: imageUrl,
+        preview_url: previewUrl,
         text: prompt,
         source_type: "generated",
         owner_id: profile?.id ?? null,

@@ -4,6 +4,7 @@ import CardTile from "@/components/CardTile";
 import SetupNotice from "@/components/SetupNotice";
 import { logoutAction } from "./actions";
 import { currentProfile } from "@/lib/account";
+import { originalSrc } from "@/lib/storage";
 import {
   getSupabase,
   isSupabaseConfigured,
@@ -32,7 +33,7 @@ export default async function AccountPage() {
   const supabase = getSupabase();
   const { data: cards } = await supabase
     .from("cards")
-    .select("id, image_url, text")
+    .select("id, image_url, preview_url, text")
     .eq("owner_id", profile.id)
     .order("created_at", { ascending: false });
 
@@ -74,7 +75,15 @@ export default async function AccountPage() {
         ) : (
           <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-4">
             {mine.map((card) => (
-              <CardTile key={card.id} card={card} ratio="auto" />
+              <div key={card.id} className="space-y-1">
+                <CardTile card={card} ratio="auto" src={originalSrc(card)} />
+                <a
+                  href={`/api/original/${card.id}?download`}
+                  className="block text-center text-xs text-gray-500 hover:text-accent"
+                >
+                  Скачать оригинал
+                </a>
+              </div>
             ))}
           </div>
         )}

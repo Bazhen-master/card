@@ -120,8 +120,22 @@ create index if not exists generations_profile_idx
 alter table public.profiles enable row level security;
 alter table public.sessions enable row level security;
 
+-- ------------------------------------------------ водяной знак (6.2) ---
+-- Превью с водяным знаком: уменьшенная копия карты, которую видят все, кроме
+-- владельца и покупателя. Оригинал при этом лежит в закрытом бакете, и
+-- cards.image_url хранит для него не ссылку, а пометку private://<файл>.
+alter table public.cards
+  add column if not exists preview_url text;
+
 -- -------------------------------------------------------------- storage ---
 -- Публичный бакет для картинок карт и обложек колод.
 insert into storage.buckets (id, name, public)
 values ('cards', 'cards', true)
 on conflict (id) do update set public = true;
+
+-- Закрытый бакет для оригиналов карт, нарисованных посетителями. public = false
+-- здесь — не деталь, а вся суть: по прямой ссылке файл не отдаётся, его
+-- показывает только наш сервер и только тому, кому положено.
+insert into storage.buckets (id, name, public)
+values ('cards-private', 'cards-private', false)
+on conflict (id) do update set public = false;

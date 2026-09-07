@@ -25,6 +25,7 @@ import {
   missingSupabaseEnv,
 } from "@/lib/supabase";
 import { currentProfile } from "@/lib/account";
+import { originalSrc } from "@/lib/storage";
 import { generateCard } from "./actions";
 
 // Результат зависит от cookie посетителя и от базы — кэшировать нечего.
@@ -137,7 +138,7 @@ export default async function GeneratePage({ searchParams }) {
         <div className="space-y-3">
           <h2 className="font-medium">Ваша карта готова</h2>
           <div className="max-w-sm">
-            <CardTile card={justCreated} ratio="auto" />
+            <CardTile card={justCreated} ratio="auto" src={originalSrc(justCreated)} />
           </div>
         </div>
       )}
@@ -221,7 +222,12 @@ export default async function GeneratePage({ searchParams }) {
           <h2 className="font-medium">Сгенерировано раньше</h2>
           <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-4">
             {earlier.map((card) => (
-              <CardTile key={card.id} card={card} ratio="auto" />
+              <CardTile
+                key={card.id}
+                card={card}
+                ratio="auto"
+                src={originalSrc(card)}
+              />
             ))}
           </div>
         </div>
