@@ -3,6 +3,8 @@ import Field from "@/components/Field";
 import SetupNotice from "@/components/SetupNotice";
 import SubmitButton from "@/components/SubmitButton";
 import {
+  DEFAULT_FORMAT,
+  FORMATS,
   PROVIDER_KEYS_URL,
   PROVIDER_TITLE,
   STYLES,
@@ -118,8 +120,8 @@ export default async function GeneratePage({ searchParams }) {
       {justCreated && (
         <div className="space-y-3">
           <h2 className="font-medium">Ваша карта готова</h2>
-          <div className="max-w-xs">
-            <CardTile card={justCreated} />
+          <div className="max-w-sm">
+            <CardTile card={justCreated} ratio="auto" />
           </div>
         </div>
       )}
@@ -139,6 +141,29 @@ export default async function GeneratePage({ searchParams }) {
             className="w-full rounded-lg border border-gray-300 px-3 py-2"
           />
         </Field>
+
+        {/* Формат — не Field: тот заворачивает содержимое в <label>, а внутри
+            метки нельзя держать метки отдельных переключателей. */}
+        <fieldset>
+          <legend className="mb-1 block text-sm text-gray-700">Формат карты</legend>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            {FORMATS.map((format) => (
+              <label key={format.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="format"
+                  value={format.id}
+                  defaultChecked={format.id === DEFAULT_FORMAT}
+                  className="h-4 w-4 accent-accent"
+                />
+                <span>
+                  {format.title}{" "}
+                  <span className="text-gray-400">({format.hint})</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <Field label="Стиль">
           <select
@@ -169,9 +194,9 @@ export default async function GeneratePage({ searchParams }) {
       {earlier.length > 0 && (
         <div className="space-y-3">
           <h2 className="font-medium">Сгенерировано раньше</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-4">
             {earlier.map((card) => (
-              <CardTile key={card.id} card={card} />
+              <CardTile key={card.id} card={card} ratio="auto" />
             ))}
           </div>
         </div>

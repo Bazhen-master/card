@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   STYLES,
+  findFormat,
   generateImage,
   isImageProviderConfigured,
 } from "@/lib/image-provider";
@@ -35,6 +36,7 @@ export async function generateCard(formData) {
 
     const requested = String(formData.get("style") || "DEFAULT");
     const style = STYLES.some((item) => item.id === requested) ? requested : "DEFAULT";
+    const format = findFormat(String(formData.get("format") || "")).id;
 
     const supabase = getSupabase();
     if (!(await generationsTableReady(supabase))) {
@@ -50,7 +52,7 @@ export async function generateCard(formData) {
       throw new Error("Лимит генераций на сегодня исчерпан. Попробуйте завтра.");
     }
 
-    const image = await generateImage({ prompt, style });
+    const image = await generateImage({ prompt, style, format });
     const imageUrl = await uploadImageBuffer(supabase, image);
 
     const { data: card, error } = await supabase
