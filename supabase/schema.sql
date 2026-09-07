@@ -75,6 +75,51 @@ alter table public.cards enable row level security;
 alter table public.leads enable row level security;
 alter table public.generations enable row level security;
 
+-- ------------------------------------------------------------- profiles ---
+-- Учётные записи посетителей (Этап 6.1). Пароли лежат не здесь, а в
+-- auth.users Supabase: проверять и хешировать их самим незачем. В profiles —
+-- то, что нужно сайту: почта для показа и связи, имя автора под картой и
+-- признак блокировки.
+create table if not exists public.profiles (
+  id            uuid primary key references auth.users(id) on delete cascade,
+  email         text not null,
+  display_name  text,
+  is_blocked    boolean not null default false,
+  created_at    timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------- sessions ---
+-- Сессии сайта. Своя таблица, а не токен Supabase: все запросы к базе и так
+-- идут служебным ключом с сервера, а строка в таблице даёт то, чего у токена
+-- нет, — возможность закрыть доступ немедленно, просто удалив её.
+create table if not exists public.sessions (
+  token       uuid primary key default gen_random_uuid(),
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  expires_at  timestamptz not null
+);
+
+create index if not exists sessions_profile_idx on public.sessions (profile_id);
+
+-- --------------------------------------------- привязка карт к аккаунту ---
+-- Карта знает своего автора. У карт, загруженных владелицей сайта через
+-- админку, автора нет — там owner_id остаётся пустым.
+alter table public.cards
+  add column if not exists owner_id uuid references public.profiles(id) on delete set null;
+
+create index if not exists cards_owner_idx on public.cards (owner_id);
+
+-- Журнал генераций тоже помнит аккаунт: у вошедшего суточный лимит считается
+-- по нему, и очистка cookie больше не обнуляет счётчик.
+alter table public.generations
+  add column if not exists profile_id uuid references public.profiles(id) on delete set null;
+
+create index if not exists generations_profile_idx
+  on public.generations (profile_id, created_at desc);
+
+alter table public.profiles enable row level security;
+alter table public.sessions enable row level security;
+
 -- -------------------------------------------------------------- storage ---
 -- Публичный бакет для картинок карт и обложек колод.
 insert into storage.buckets (id, name, public)

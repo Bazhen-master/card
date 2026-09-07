@@ -1,3 +1,4 @@
+import Link from "next/link";
 import CardTile from "@/components/CardTile";
 import Field from "@/components/Field";
 import SetupNotice from "@/components/SetupNotice";
@@ -23,6 +24,7 @@ import {
   isSupabaseConfigured,
   missingSupabaseEnv,
 } from "@/lib/supabase";
+import { currentProfile } from "@/lib/account";
 import { generateCard } from "./actions";
 
 // Результат зависит от cookie посетителя и от базы — кэшировать нечего.
@@ -81,7 +83,12 @@ export default async function GeneratePage({ searchParams }) {
   }
 
   const session = readSessionId();
-  const left = await remainingGenerations(supabase, { session, ip: ipHash() });
+  const profile = await currentProfile();
+  const left = await remainingGenerations(supabase, {
+    session,
+    ip: ipHash(),
+    profile: profile?.id,
+  });
 
   const error = searchParams?.error;
   const justCreatedId = searchParams?.card;
@@ -94,17 +101,26 @@ export default async function GeneratePage({ searchParams }) {
         .maybeSingle()
     : { data: null };
 
-  const { data: history } = session
+  // У вошедшего история берётся из аккаунта и переживает смену браузера,
+  // у гостя — из журнала по cookie, как и раньше.
+  const { data: history } = profile
     ? await supabase
-        .from("generations")
-        .select("id, cards(id, image_url, text)")
-        .eq("session_id", session)
+        .from("cards")
+        .select("id, image_url, text")
+        .eq("owner_id", profile.id)
         .order("created_at", { ascending: false })
         .limit(8)
-    : { data: null };
+    : session
+      ? await supabase
+          .from("generations")
+          .select("id, cards(id, image_url, text)")
+          .eq("session_id", session)
+          .order("created_at", { ascending: false })
+          .limit(8)
+      : { data: null };
 
   const earlier = (history ?? [])
-    .map((row) => row.cards)
+    .map((row) => (profile ? row : row.cards))
     .filter((card) => card && card.id !== justCreatedId);
 
   return (
@@ -189,6 +205,15 @@ export default async function GeneratePage({ searchParams }) {
               : "Лимит на сегодня исчерпан — возвращайтесь завтра"}
           </span>
         </div>
+        {!profile && (
+          <p className="text-sm text-gray-500">
+            <Link href="/register" className="text-accent hover:underline">
+              Заведите учётную запись
+            </Link>{" "}
+            — карты сохранятся в кабинете и не потеряются вместе с историей
+            браузера. Уже нарисованные перенесутся при первом входе.
+          </p>
+        )}
       </form>
 
       {earlier.length > 0 && (

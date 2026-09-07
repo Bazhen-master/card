@@ -14,6 +14,7 @@ import {
   ipHash,
   remainingGenerations,
 } from "@/lib/generation-limit";
+import { currentProfile } from "@/lib/account";
 import { uploadImageBuffer } from "@/lib/storage";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
@@ -47,8 +48,9 @@ export async function generateCard(formData) {
 
     const session = ensureSessionId();
     const ip = ipHash();
+    const profile = await currentProfile();
 
-    if ((await remainingGenerations(supabase, { session, ip })) <= 0) {
+    if ((await remainingGenerations(supabase, { session, ip, profile: profile?.id })) <= 0) {
       throw new Error("Лимит генераций на сегодня исчерпан. Попробуйте завтра.");
     }
 
@@ -57,7 +59,12 @@ export async function generateCard(formData) {
 
     const { data: card, error } = await supabase
       .from("cards")
-      .insert({ image_url: imageUrl, text: prompt, source_type: "generated" })
+      .insert({
+        image_url: imageUrl,
+        text: prompt,
+        source_type: "generated",
+        owner_id: profile?.id ?? null,
+      })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
@@ -68,6 +75,7 @@ export async function generateCard(formData) {
     const { error: logError } = await supabase.from("generations").insert({
       session_id: session,
       ip_hash: ip,
+      profile_id: profile?.id ?? null,
       card_id: cardId,
       prompt,
     });
