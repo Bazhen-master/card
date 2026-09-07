@@ -1,7 +1,8 @@
 import Link from "next/link";
-import CardTile from "@/components/CardTile";
+import CardGallery from "@/components/CardGallery";
 import SetupNotice from "@/components/SetupNotice";
 import { formatPrice } from "@/lib/format";
+import { cardSrc } from "@/lib/storage";
 import {
   getSupabase,
   isSupabaseConfigured,
@@ -61,21 +62,16 @@ export default async function GalleryPage() {
       )}
 
       {list.length > 0 && (
-        <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-4">
-          {list.map((card) => (
-            <Link key={card.id} href={`/gallery/${card.id}`} className="group block">
-              <CardTile card={card} ratio="auto" />
-              <p className="mt-1 flex items-baseline justify-between text-sm">
-                <span className="font-medium text-accent">
-                  {formatPrice(card.price)}
-                </span>
-                <span className="text-gray-400 group-hover:text-accent">
-                  {card.profiles?.display_name || "Автор"}
-                </span>
-              </p>
-            </Link>
-          ))}
-        </div>
+        <CardGallery
+          items={list.map((card) => ({
+            id: card.id,
+            src: cardSrc(card),
+            text: card.text,
+            title: card.profiles?.display_name || "Автор",
+            price: card.price,
+            href: `/gallery/${card.id}`,
+          }))}
+        />
       )}
     </section>
   );
