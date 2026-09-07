@@ -59,6 +59,9 @@ export default async function AdminPage({ searchParams }) {
         <Link href="/admin/moderation" className="text-accent hover:underline">
           Модерация галереи
         </Link>
+        <Link href="/admin/leads" className="text-accent hover:underline">
+          Заявки на покупку
+        </Link>
         {pendingCount > 0 && (
           <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
             на проверке: {pendingCount}

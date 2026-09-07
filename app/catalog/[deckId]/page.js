@@ -2,6 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import CardTile from "@/components/CardTile";
 import SetupNotice from "@/components/SetupNotice";
+import SubmitButton from "@/components/SubmitButton";
+import { recordInterest, saveContact } from "../actions";
+import { TARIFFS } from "@/lib/tariffs";
+import { currentProfile } from "@/lib/account";
 import { formatPrice, pluralCards } from "@/lib/format";
 import { imageSrc } from "@/lib/storage";
 import {
@@ -12,7 +16,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function DeckPage({ params }) {
+export default async function DeckPage({ params, searchParams }) {
   if (!isSupabaseConfigured) {
     return <SetupNotice missing={missingSupabaseEnv()} />;
   }
@@ -35,6 +39,13 @@ export default async function DeckPage({ params }) {
     .order("created_at", { ascending: true });
 
   const list = cards ?? [];
+
+  // Кто вошёл — тому подставим его почту в поле контакта: набирать её заново
+  // ради заявки незачем.
+  const profile = await currentProfile();
+
+  const lead = searchParams?.lead;
+  const tariff = TARIFFS[searchParams?.tariff] ? searchParams.tariff : null;
 
   return (
     <article className="space-y-8">
@@ -64,18 +75,67 @@ export default async function DeckPage({ params }) {
           <p className="text-sm text-gray-400">{pluralCards(list.length)}</p>
           <p className="text-xl font-medium text-accent">{formatPrice(deck.price)}</p>
 
-          {/* Заглушка: рабочая кнопка со сбором заявок появится на Этапе 4. */}
-          <div className="space-y-2 pt-2">
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-lg bg-accent px-5 py-2 text-white opacity-50"
-            >
-              Купить колоду
-            </button>
-            <p className="text-xs text-gray-400">
-              Оформление заказа появится на следующем этапе.
-            </p>
+          {/* Настоящей оплаты за кнопками нет: Этап 4 выясняет спрос — по
+              каким колодам и за какой тариф вообще нажимают. */}
+          <div className="space-y-3 pt-2">
+            {searchParams?.error && (
+              <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {searchParams.error}
+              </p>
+            )}
+
+            {searchParams?.thanks ? (
+              <p className="rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800">
+                Спасибо! Напишем, как только оплату можно будет провести.
+              </p>
+            ) : lead ? (
+              <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+                <div>
+                  <p className="font-medium">Скоро будет доступно</p>
+                  <p className="text-sm text-gray-600">
+                    {tariff ? TARIFFS[tariff] : "Покупка колоды"} пока не
+                    оплачивается на сайте. Оставьте почту или телефон — сообщим,
+                    когда откроем оплату.
+                  </p>
+                </div>
+
+                <form action={saveContact} className="flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="deck" value={deck.id} />
+                  <input type="hidden" name="lead" value={lead} />
+                  <input
+                    name="contact"
+                    required
+                    defaultValue={profile?.email ?? ""}
+                    placeholder="почта или телефон"
+                    className="min-w-[12rem] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                  <SubmitButton pendingLabel="Сохраняю…">Сообщить мне</SubmitButton>
+                </form>
+
+                <p className="text-xs text-gray-400">
+                  Контакт нужен только для одного письма об открытии оплаты.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                <form action={recordInterest}>
+                  <input type="hidden" name="deck" value={deck.id} />
+                  <input type="hidden" name="tariff" value="deck" />
+                  <SubmitButton pendingLabel="Секунду…">Купить колоду</SubmitButton>
+                </form>
+
+                <form action={recordInterest}>
+                  <input type="hidden" name="deck" value={deck.id} />
+                  <input type="hidden" name="tariff" value="subscription" />
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-accent px-5 py-2.5 text-accent hover:bg-accent/10"
+                  >
+                    Подписка на все колоды
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       </header>
