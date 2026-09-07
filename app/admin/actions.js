@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 import { addEntry } from "@/lib/balance";
 import { toKopecks } from "@/lib/format";
 import { requireAdmin } from "@/lib/require-admin";
-import { removeImages, uploadImage } from "@/lib/storage";
-import { getSupabase } from "@/lib/supabase";
+import { createHash } from "node:crypto";
+import { objectNameFromUrl, removeImages, uploadImage } from "@/lib/storage";
+import { CARDS_BUCKET, getSupabase } from "@/lib/supabase";
 
 // Все действия завершаются редиректом на ту же страницу: успех — ?ok=1,
 // ошибка — ?error=<текст>. Так пользователь видит результат без клиентского JS.
@@ -16,8 +17,10 @@ async function finish(path, work) {
   await requireAdmin();
 
   let message = null;
+  let note = null;
   try {
-    await work();
+    // Действие может вернуть строку — её покажем вместо общего «Сохранено».
+    note = await work();
   } catch (error) {
     message = error?.message || "Не удалось выполнить действие";
   }
@@ -26,7 +29,11 @@ async function finish(path, work) {
   // "layout" — чтобы обновилась и /catalog, и страницы отдельных колод
   // /catalog/[deckId]: без этого правки видны в списке, но не внутри колоды.
   revalidatePath("/catalog", "layout");
-  redirect(message ? `${path}?error=${encodeURIComponent(message)}` : `${path}?ok=1`);
+  redirect(
+    message
+      ? `${path}?error=${encodeURIComponent(message)}`
+      : `${path}?ok=${note ? encodeURIComponent(note) : "1"}`
+  );
 }
 
 // ----------------------------------------------------------- баланс -----
@@ -262,6 +269,69 @@ export async function moveDeck(formData) {
 
 /* ------------------------------------------------------------------ карты */
 
+// Одна и та же картинка не должна попадать в колоду дважды. Заказчица
+// загружала файлы пачками и повторяла их: в колоде оказалось 36 карт при 11
+// разных изображениях, и витрина выглядела как склад одинаковых мандал.
+//
+// Сравниваем по содержимому, а не по имени файла: имя у каждой загрузки своё.
+// Сначала отсеиваем повторы внутри самой пачки, затем сверяемся с тем, что уже
+// лежит в колоде. Чтобы не качать всю колоду, сначала смотрим на размер файла —
+// он берётся из описи хранилища, и скачивать приходится только совпавших по
+// размеру.
+async function findDuplicates(supabase, deckId, files) {
+  const buffers = await Promise.all(
+    files.map(async (file) => Buffer.from(await file.arrayBuffer()))
+  );
+  const hashes = buffers.map((buffer) =>
+    createHash("sha256").update(buffer).digest("hex")
+  );
+
+  const { data: cards } = await supabase
+    .from("cards")
+    .select("image_url")
+    .eq("deck_id", deckId);
+
+  const names = (cards ?? [])
+    .map((card) => objectNameFromUrl(card.image_url))
+    .filter(Boolean);
+
+  const { data: listing } = await supabase.storage.from(CARDS_BUCKET).list("", {
+    limit: 1000,
+  });
+  const sizes = new Map(
+    (listing ?? []).map((item) => [item.name, item.metadata?.size ?? null])
+  );
+
+  const known = new Set();
+  for (const name of names) {
+    const size = sizes.get(name);
+    // Файла такого размера среди загружаемых нет — качать незачем.
+    if (size !== null && !buffers.some((buffer) => buffer.length === size)) continue;
+
+    const { data: file } = await supabase.storage.from(CARDS_BUCKET).download(name);
+    if (!file) continue;
+    known.add(
+      createHash("sha256").update(Buffer.from(await file.arrayBuffer())).digest("hex")
+    );
+  }
+
+  const seen = new Set();
+  const fresh = [];
+  let skipped = 0;
+
+  for (const [index, file] of files.entries()) {
+    const hash = hashes[index];
+    if (known.has(hash) || seen.has(hash)) {
+      skipped += 1;
+      continue;
+    }
+    seen.add(hash);
+    fresh.push(file);
+  }
+
+  return { fresh, skipped };
+}
+
 export async function createCards(formData) {
   const deckId = String(formData.get("deck_id") || "");
   await finish(`/admin/decks/${deckId}`, async () => {
@@ -272,23 +342,36 @@ export async function createCards(formData) {
 
     if (files.length === 0) throw new Error("Выберите хотя бы одно изображение");
 
+    const { fresh, skipped } = await findDuplicates(supabase, deckId, files);
+    if (fresh.length === 0) {
+      throw new Error(
+        skipped === 1
+          ? "Такая карта в колоде уже есть — ничего не добавлено"
+          : `Все ${skipped} картинок уже есть в колоде — ничего не добавлено`
+      );
+    }
+
     const text = optionalText(formData, "text");
     const price = parsePrice(formData, "price");
     let order = await nextSortOrder(supabase, "cards", deckId);
 
     // Грузим по одному файлу, чтобы в ошибке было видно, на каком именно споткнулись.
-    for (const file of files) {
+    for (const file of fresh) {
       const imageUrl = await uploadImage(supabase, file);
       const { error } = await supabase.from("cards").insert({
         deck_id: deckId,
         image_url: imageUrl,
         // Общий текст осмыслен только при загрузке одной карты.
-        text: files.length === 1 ? text : null,
+        text: fresh.length === 1 ? text : null,
         price,
         source_type: "uploaded",
         sort_order: order++,
       });
       if (error) throw new Error(error.message);
+    }
+
+    if (skipped > 0) {
+      return `Добавлено карт: ${fresh.length}. Пропущено повторов: ${skipped} — такие картинки в колоде уже есть.`;
     }
   });
 }
