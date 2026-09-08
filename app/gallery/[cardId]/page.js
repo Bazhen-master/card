@@ -38,6 +38,12 @@ export default async function GalleryCardPage({ params, searchParams }) {
   // Владелец и покупатель смотрят оригинал, остальные — превью со знаком.
   const src = mine || bought ? originalSrc(card) : cardSrc(card);
 
+  // Описание — это запрос, по которому карта нарисована. Его видит автор (и в
+  // модерации — владелица сайта), но не посетитель галереи: иначе карту не
+  // покупают, а повторяют по готовому рецепту. Покупателю запрос тоже не
+  // показываем — он купил картинку, а не способ печатать такие же.
+  const ownText = mine ? card.text : null;
+
   return (
     <section className="space-y-6">
       <Link href="/gallery" className="text-sm text-gray-500 hover:text-accent">
@@ -60,13 +66,13 @@ export default async function GalleryCardPage({ params, searchParams }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
-            alt={card.text || "Метафорическая карта"}
+            alt={ownText || "Метафорическая карта"}
             className="block w-full"
           />
         </div>
 
         <div className="space-y-4">
-          {card.text && <p className="text-gray-700">{card.text}</p>}
+          {ownText && <p className="text-gray-700">{ownText}</p>}
 
           <p className="text-sm text-gray-500">Автор: {author}</p>
 

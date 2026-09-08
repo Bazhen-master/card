@@ -32,6 +32,16 @@ export default async function CatalogPage() {
     <section>
       <h1 className="mb-6 text-2xl font-semibold">Каталог готовых карт</h1>
 
+      {/* Табличка «что будет дальше» по просьбе заказчицы: посетитель должен
+          видеть, что раздел живой и пополняется, а не заброшен. Текст —
+          обещание без сроков: сроки поставим, когда этап будет запланирован. */}
+      <p className="mb-6 rounded-lg border border-dashed border-accent/40 bg-accent/5 px-4 py-3 text-sm text-gray-600">
+        <span className="font-medium text-accent">Раздел в доработке.</span>{" "}
+        Колод будет больше, а рядом с готовыми появятся авторские — собранные
+        из карт, нарисованных на сайте. Пока карты авторов продаются поштучно
+        в галерее.
+      </p>
+
       {error && (
         <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
           Не удалось загрузить каталог: {error.message}

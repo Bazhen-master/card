@@ -14,9 +14,14 @@ export default function RootLayout({ children }) {
     <html lang="ru">
       <body>
         {/* На узком экране шапка переносится в две строки, а не сжимается в
-            нечитаемую полоску: пунктов шесть, и в 360 точек они не помещаются
+            нечитаемую полоску: в 360 точек все пункты не помещаются
             никак. «Сгенерировать карту» на телефоне сокращается до «Создать» —
-            это самая длинная надпись, и именно она ломала строку. */}
+            это самая длинная надпись, и именно она ломала строку.
+
+            Ссылки на админку здесь нет намеренно: посетителю она не нужна, а
+            владелица заходит по прямому адресу /admin. На доступ это не
+            влияет — /admin/* закрыт паролём в middleware, ссылка лишь
+            показывала посторонним, что админка вообще есть. */}
         <header className="border-b border-gray-200 bg-white">
           <nav className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm sm:gap-x-6 sm:py-4">
             <Link href="/" className="font-semibold text-accent">
@@ -29,7 +34,6 @@ export default function RootLayout({ children }) {
               <span className="hidden sm:inline">Сгенерировать карту</span>
             </Link>
             <Link href="/account" className="hover:text-accent sm:ml-auto">Кабинет</Link>
-            <Link href="/admin" className="text-gray-400 hover:text-accent">Админка</Link>
           </nav>
         </header>
         <main className="mx-auto max-w-4xl px-4 py-6 sm:py-10">{children}</main>

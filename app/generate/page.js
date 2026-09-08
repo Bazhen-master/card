@@ -141,6 +141,16 @@ export default async function GeneratePage({ searchParams }) {
         </p>
       )}
 
+      {/* Анонс по просьбе заказчицы: посетитель должен понимать, что сейчас
+          сеть одна, а дальше будет выбор. Ни сроков, ни названий моделей здесь
+          нет намеренно — обещать конкретную сеть до её проверки нельзя. */}
+      <p className="rounded-lg border border-dashed border-accent/40 bg-accent/5 px-4 py-3 text-sm text-gray-600">
+        <span className="font-medium text-accent">Скоро.</span> Появится выбор
+        нейросети: разные модели рисуют по-разному и стоят по-разному. И можно
+        будет не рисовать заново, а поправить уже готовую карту — дорисовать
+        деталь или изменить кусочек.
+      </p>
+
       {justCreated && (
         <div className="space-y-3">
           <h2 className="font-medium">Ваша карта готова</h2>
@@ -153,13 +163,13 @@ export default async function GeneratePage({ searchParams }) {
       <form action={generateCard} className="max-w-xl space-y-4">
         <Field
           label="Опишите карту"
-          hint="Чем подробнее описание, тем ближе результат. До 500 символов."
+          hint="Чем подробнее описание, тем ближе результат. До 2000 символов, но лучше работают несколько плотных предложений, чем страница текста."
           required
         >
           <textarea
             name="prompt"
             rows={4}
-            maxLength={500}
+            maxLength={2000}
             required
             placeholder="Например: одинокое дерево на берегу озера в утреннем тумане, мягкий свет, акварель"
             className="w-full rounded-lg border border-gray-300 px-3 py-2"
@@ -214,19 +224,22 @@ export default async function GeneratePage({ searchParams }) {
               `Осталось бесплатных сегодня: ${left} из ${PER_SESSION_PER_DAY}`
             ) : payable ? (
               <>
-                Бесплатные на сегодня закончились. Следующая —{" "}
+                Бесплатные на сегодня закончились, новые — после полуночи по
+                Москве. Следующая сейчас —{" "}
                 {formatPrice(GENERATION_PRICE)} с баланса, на нём{" "}
                 {formatPrice(balance)}.
               </>
             ) : profile ? (
               <>
-                Бесплатные на сегодня закончились. Следующая стоит{" "}
+                Бесплатные на сегодня закончились, новые — после полуночи по
+                Москве. Следующая сейчас стоит{" "}
                 {formatPrice(GENERATION_PRICE)}, на балансе{" "}
                 {formatPrice(balance)} — пополнение пока делает владелица сайта.
               </>
             ) : (
               <>
-                Бесплатные на сегодня закончились.{" "}
+                Бесплатные на сегодня закончились, новые — после полуночи по
+                Москве.{" "}
                 <Link href="/login?from=%2Fgenerate" className="text-accent hover:underline">
                   Войдите
                 </Link>

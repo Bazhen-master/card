@@ -30,7 +30,7 @@ export default async function GalleryPage() {
   // автор и админ.
   const { data: cards, error } = await supabase
     .from("cards")
-    .select("id, preview_url, image_url, text, price, profiles(display_name)")
+    .select("id, preview_url, image_url, price, profiles(display_name)")
     .eq("status", "listed")
     .order("listed_at", { ascending: false })
     .limit(60);
@@ -66,7 +66,10 @@ export default async function GalleryPage() {
           items={list.map((card) => ({
             id: card.id,
             src: cardSrc(card),
-            text: card.text,
+            // Описание карты (оно же запрос к нейросети) наружу не отдаём —
+            // ни текстом, ни в alt: иначе чужой запрос копируется и
+            // повторяется одним движением. Автор видит своё в кабинете,
+            // владелица сайта — в модерации.
             title: card.profiles?.display_name || "Автор",
             price: card.price,
             href: `/gallery/${card.id}`,

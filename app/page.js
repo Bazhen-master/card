@@ -26,7 +26,7 @@ async function showcaseCards() {
       .limit(100),
     supabase
       .from("cards")
-      .select("id, image_url, preview_url, text, price, profiles(display_name)")
+      .select("id, image_url, preview_url, price, profiles(display_name)")
       .eq("status", "listed")
       .order("listed_at", { ascending: false })
       .limit(40),
@@ -54,11 +54,12 @@ async function showcaseCards() {
   }));
 
   // У карт галереи показывается превью со знаком: оригинал — только автору и
-  // покупателю.
+  // покупателю. Описание такой карты (оно же запрос к нейросети) не выводится
+  // и не подставляется в alt: иначе чужой запрос копируется одним движением.
+  // У карт колод текст свой, подпись от владелицы сайта, — он остаётся.
   const fromGallery = (galleryCards.data ?? []).map((card) => ({
     id: card.id,
     src: cardSrc(card),
-    text: card.text,
     title: card.profiles?.display_name || "Автор",
     price: card.price,
     note: null,

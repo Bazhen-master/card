@@ -57,10 +57,13 @@ export default async function DeckPage({ params, searchParams }) {
         <div className="w-full shrink-0 overflow-hidden rounded-xl bg-cardBg sm:w-56">
           {deck.cover_image ? (
             // eslint-disable-next-line @next/next/no-img-element
+            /* На странице самой колоды обложка одна, ровнять её не с чем —
+               показываем в своей пропорции. Рамка 3:4 оставляла бы пустые
+               поля сверху и снизу у квадратной обложки. */
             <img
               src={imageSrc(deck.cover_image)}
               alt={deck.title}
-              className="aspect-[3/4] w-full object-cover"
+              className="block w-full"
             />
           ) : (
             <div className="flex aspect-[3/4] items-center justify-center text-sm text-gray-400">
@@ -145,9 +148,15 @@ export default async function DeckPage({ params, searchParams }) {
         {list.length === 0 ? (
           <p className="text-gray-500">В этой колоде пока нет карт.</p>
         ) : (
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+          // Карты показываются в своей пропорции и укладываются колонками,
+          // как в общей галерее. Раньше здесь была сетка с обрезкой под 3:4:
+          // колода выглядела ровной, но у квадратных карт (мандалы) срезало
+          // края — а у мандалы край это часть рисунка, обрезать его нельзя.
+          <div className="columns-2 gap-5 sm:columns-3">
             {list.map((card) => (
-              <CardTile key={card.id} card={card} />
+              <div key={card.id} className="mb-5 break-inside-avoid">
+                <CardTile card={card} ratio="auto" />
+              </div>
             ))}
           </div>
         )}

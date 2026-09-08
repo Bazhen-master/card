@@ -21,7 +21,11 @@ import { uploadImageBuffer, uploadOriginalBuffer } from "@/lib/storage";
 import { PREVIEW_UPLOAD, makePreview } from "@/lib/watermark";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
-const MAX_PROMPT = 500;
+// 2000 символов по просьбе заказчицы (было 500). Предел не технический, а
+// разумный: описание переводится на английский и уходит в Flux, а его
+// текстовый кодировщик читает примерно первые полторы-две тысячи знаков —
+// хвост длинного сочинения на картинку уже не влияет.
+const MAX_PROMPT = 2000;
 
 // Превью нужно витрине, а не самому посетителю: свою карту он видит целой.
 // Поэтому осечка водяного знака не должна отменять генерацию, за которую уже

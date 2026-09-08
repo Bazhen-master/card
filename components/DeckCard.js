@@ -8,6 +8,9 @@ export default function DeckCard({ deck, cardsCount }) {
       href={`/catalog/${deck.id}`}
       className="group block overflow-hidden rounded-xl border border-gray-200 bg-white transition hover:border-accent hover:shadow-sm"
     >
+      {/* Рамка обложки остаётся 3:4, чтобы плитки колод в каталоге стояли
+          ровным рядом, но картинка внутри вписывается целиком (object-contain),
+          а не обрезается: квадратная обложка теряла при обрезке края рисунка. */}
       <div className="aspect-[3/4] bg-cardBg">
         {deck.cover_image ? (
           // Обычный img, а не next/image: оптимизатор Next пришлось бы отдельно
@@ -16,7 +19,7 @@ export default function DeckCard({ deck, cardsCount }) {
           <img
             src={imageSrc(deck.cover_image)}
             alt={deck.title}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-gray-400">

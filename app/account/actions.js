@@ -104,6 +104,16 @@ async function ownCard(supabase, profile, formData) {
   return card;
 }
 
+// Цена из формы: в поле пишут и «3,5», и «3.5», а в базе лежат копейки.
+function priceFromForm(formData) {
+  const raw = String(formData.get("price") || "").trim().replace(",", ".");
+  const price = toKopecks(Number.parseFloat(raw));
+  if (!Number.isFinite(price) || price < MIN_CARD_PRICE) {
+    throw new Error(`Цена не может быть меньше ${formatPrice(MIN_CARD_PRICE)}`);
+  }
+  return price;
+}
+
 export async function publishCardAction(formData) {
   await inAccount(async (supabase, profile) => {
     const card = await ownCard(supabase, profile, formData);
@@ -115,17 +125,39 @@ export async function publishCardAction(formData) {
       );
     }
 
-    const raw = String(formData.get("price") || "").trim().replace(",", ".");
-    const price = toKopecks(Number.parseFloat(raw));
-    if (!Number.isFinite(price) || price < MIN_CARD_PRICE) {
-      throw new Error(`Цена не может быть меньше ${formatPrice(MIN_CARD_PRICE)}`);
-    }
+    const price = priceFromForm(formData);
 
     const { error } = await supabase
       .from("cards")
       .update({ status: "pending", price, reject_reason: null })
       .eq("id", card.id);
     if (error) throw new Error(error.message);
+  });
+}
+
+// Смена цены у карты, которая уже на проверке или в галерее. Повторной
+// модерации не требует намеренно: проверяют картинку, а не ценник, и гонять
+// карту через очередь из-за рубля — терять её место на витрине. Купленные
+// карты это не задевает: в purchases цена записана на момент покупки.
+export async function changePriceAction(formData) {
+  await inAccount(async (supabase, profile) => {
+    const card = await ownCard(supabase, profile, formData);
+
+    if (card.status !== "listed" && card.status !== "pending") {
+      throw new Error("Цену можно менять у карты на проверке или в галерее");
+    }
+
+    const price = priceFromForm(formData);
+
+    const { error } = await supabase
+      .from("cards")
+      .update({ price })
+      .eq("id", card.id);
+    if (error) throw new Error(error.message);
+
+    // Новая цена должна тут же встать и на витрине, и на главной.
+    revalidatePath("/gallery", "layout");
+    revalidatePath("/");
   });
 }
 

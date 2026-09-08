@@ -6,6 +6,7 @@ import Field from "@/components/Field";
 import SetupNotice from "@/components/SetupNotice";
 import {
   logoutAction,
+  changePriceAction,
   publishCardAction,
   saveNameAction,
   withdrawCardAction,
@@ -228,7 +229,7 @@ function CardStatus({ card }) {
     return (
       <div className="space-y-2">
         <p className="text-amber-700">На проверке — обычно это недолго.</p>
-        <p className="text-gray-500">Цена: {formatPrice(card.price)}</p>
+        <PriceForm card={card} />
         <WithdrawButton card={card} label="Отозвать" />
       </div>
     );
@@ -243,7 +244,7 @@ function CardStatus({ card }) {
             посмотреть
           </Link>
         </p>
-        <p className="text-gray-500">Цена: {formatPrice(card.price)}</p>
+        <PriceForm card={card} />
         <WithdrawButton card={card} label="Убрать из галереи" />
       </div>
     );
@@ -290,6 +291,37 @@ function CardStatus({ card }) {
         </p>
       )}
     </div>
+  );
+}
+
+// Цену выставленной карты можно поправить, не снимая её с витрины: проверку
+// проходит картинка, а не ценник. Карта остаётся там же, где была.
+function PriceForm({ card }) {
+  return (
+    <form action={changePriceAction} className="flex flex-wrap items-end gap-2">
+      <input type="hidden" name="card" value={card.id} />
+      <label className="text-xs text-gray-500">
+        Цена, ₽
+        <input
+          name="price"
+          type="number"
+          min={toRubles(MIN_CARD_PRICE)}
+          step="0.1"
+          defaultValue={toRubles(card.price ?? MIN_CARD_PRICE)}
+          className="mt-1 block w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800"
+        />
+      </label>
+      <button
+        type="submit"
+        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:border-accent hover:text-accent"
+      >
+        Изменить цену
+      </button>
+      <span className="w-full text-xs text-gray-400">
+        Сейчас {formatPrice(card.price)}. Новая цена встаёт сразу, повторной
+        проверки не требует; уже купленные карты остаются по старой цене.
+      </span>
+    </form>
   );
 }
 
