@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { addEntry } from "@/lib/balance";
 import { toKopecks } from "@/lib/format";
 import { requireAdmin } from "@/lib/require-admin";
+import { writeSetting } from "@/lib/settings";
 import { createHash } from "node:crypto";
 import { objectNameFromUrl, removeImages, uploadImage } from "@/lib/storage";
 import { CARDS_BUCKET, getSupabase } from "@/lib/supabase";
@@ -58,6 +59,33 @@ export async function adjustBalance(formData) {
       kind: rubles > 0 ? "topup" : "admin",
       comment,
     });
+  });
+}
+
+// ---------------------------------------------------------- настройки -----
+// Стартовый бонус и длительность бесплатного периода владелица сайта меняет
+// сама, без правки кода. Бонус приходит в рублях, в базе лежит в копейках.
+export async function saveSettings(formData) {
+  await finish("/admin/settings", async () => {
+    const bonus = Number.parseFloat(
+      String(formData.get("signup_bonus") || "").trim().replace(",", ".")
+    );
+    const days = Number.parseInt(String(formData.get("free_period_days") || ""), 10);
+
+    if (!Number.isFinite(bonus) || bonus < 0) {
+      throw new Error("Стартовый бонус — число не меньше нуля");
+    }
+    if (!Number.isInteger(days) || days < 0) {
+      throw new Error("Бесплатный период — целое число дней, не меньше нуля");
+    }
+
+    const supabase = getSupabase();
+    await writeSetting(supabase, "signup_bonus", toKopecks(bonus));
+    await writeSetting(supabase, "free_period_days", days);
+
+    return days > 0
+      ? `Сохранено: бонус ${bonus} ₽, бесплатный период ${days} дн.`
+      : `Сохранено: бонус ${bonus} ₽, бесплатный период без ограничения`;
   });
 }
 

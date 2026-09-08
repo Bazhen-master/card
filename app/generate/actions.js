@@ -12,13 +12,14 @@ import {
   ensureSessionId,
   generationsTableReady,
   ipHash,
-  remainingGenerations,
+  generationAllowance,
 } from "@/lib/generation-limit";
 import { currentProfile } from "@/lib/account";
 import { GENERATION_PRICE, addEntry, balanceOf } from "@/lib/balance";
 import { formatMoney, formatPrice } from "@/lib/format";
 import { uploadImageBuffer, uploadOriginalBuffer } from "@/lib/storage";
 import { PREVIEW_UPLOAD, makePreview } from "@/lib/watermark";
+import { cardTitleReady } from "@/lib/settings";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 // 2000 символов по просьбе заказчицы (было 500). Предел не технический, а
@@ -26,6 +27,11 @@ import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 // текстовый кодировщик читает примерно первые полторы-две тысячи знаков —
 // хвост длинного сочинения на картинку уже не влияет.
 const MAX_PROMPT = 2000;
+
+// Название карты — короткая строка, её видят все. Длинное в плитку галереи всё
+// равно не влезет, поэтому режем, а не ругаемся: человек писал название, а не
+// заполнял форму на точность.
+const MAX_TITLE = 60;
 
 // Превью нужно витрине, а не самому посетителю: свою карту он видит целой.
 // Поэтому осечка водяного знака не должна отменять генерацию, за которую уже
@@ -45,10 +51,17 @@ async function makeWatermarkedPreview(supabase, image) {
 // после — значит рисовать в долг. Если что-то сорвалось, строка списания
 // удаляется целиком: показывать посетителю пару «списали — вернули» за
 // неслучившуюся картинку незачем.
-async function chargeForGeneration(supabase, profile) {
+async function chargeForGeneration(supabase, profile, periodOver = false) {
+  // Разные новости: «на сегодня всё» проходит к завтрашнему дню само,
+  // «период закончился» — уже нет, и говорить об этом надо прямо.
+  const why = periodOver
+    ? "Бесплатный период закончился."
+    : "Бесплатные генерации на сегодня закончились.";
+
   if (!profile) {
     throw new Error(
-      "Бесплатные генерации на сегодня закончились. Войдите в учётную запись — следующая будет стоить " +
+      why +
+        " Войдите в учётную запись — следующая будет стоить " +
         formatPrice(GENERATION_PRICE) +
         " с баланса."
     );
@@ -57,7 +70,8 @@ async function chargeForGeneration(supabase, profile) {
   const balance = await balanceOf(supabase, profile.id);
   if (balance < GENERATION_PRICE) {
     throw new Error(
-      "Бесплатные генерации на сегодня закончились. Следующая стоит " +
+      why +
+        " Следующая стоит " +
         formatPrice(GENERATION_PRICE) +
         ", на балансе " +
         formatMoney(balance) +
@@ -84,6 +98,7 @@ export async function generateCard(formData) {
       throw new Error("Генерация ещё не настроена: не заданы ключи доступа");
     }
 
+    const title = String(formData.get("title") || "").trim().slice(0, MAX_TITLE);
     const prompt = String(formData.get("prompt") || "").trim();
     if (!prompt) throw new Error("Опишите карту, которую хотите получить");
     if (prompt.length > MAX_PROMPT) {
@@ -106,14 +121,23 @@ export async function generateCard(formData) {
     const profile = await currentProfile();
 
     refundClient = supabase;
-    const free = await remainingGenerations(supabase, { session, ip, profile: profile?.id });
-    if (free <= 0) chargeId = await chargeForGeneration(supabase, profile);
+    const { free, periodOver } = await generationAllowance(supabase, {
+      session,
+      ip,
+      profile: profile?.id,
+    });
+    if (free <= 0) chargeId = await chargeForGeneration(supabase, profile, periodOver);
 
     const image = await generateImage({ prompt, style, format });
 
     // Оригинал — в закрытый бакет, превью со знаком — в публичный.
     const imageUrl = await uploadOriginalBuffer(supabase, image);
     const previewUrl = await makeWatermarkedPreview(supabase, image);
+
+    // Название пишем, только если колонка в базе уже есть: схему выполняет
+    // владелица сайта руками, а код приезжает деплоем — между этими моментами
+    // генерация обязана работать.
+    const withTitle = title && (await cardTitleReady(supabase));
 
     const { data: card, error } = await supabase
       .from("cards")
@@ -123,6 +147,7 @@ export async function generateCard(formData) {
         text: prompt,
         source_type: "generated",
         owner_id: profile?.id ?? null,
+        ...(withTitle ? { title } : {}),
       })
       .select("id")
       .single();

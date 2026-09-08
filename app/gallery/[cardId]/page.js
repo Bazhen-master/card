@@ -5,6 +5,7 @@ import { buyCardAction } from "../actions";
 import { currentProfile } from "@/lib/account";
 import { balanceOf, hasPurchased } from "@/lib/balance";
 import { formatMoney, formatPrice } from "@/lib/format";
+import { cardTitleReady, withTitle } from "@/lib/settings";
 import { cardSrc, originalSrc } from "@/lib/storage";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
@@ -16,9 +17,15 @@ export default async function GalleryCardPage({ params, searchParams }) {
   if (!isSupabaseConfigured) notFound();
 
   const supabase = getSupabase();
+  const titleReady = await cardTitleReady(supabase);
   const { data: card } = await supabase
     .from("cards")
-    .select("id, preview_url, image_url, text, price, status, owner_id, profiles(display_name)")
+    .select(
+      withTitle(
+        "id, preview_url, image_url, text, price, status, owner_id, profiles(display_name)",
+        titleReady
+      )
+    )
     .eq("id", params.cardId)
     .maybeSingle();
 
@@ -66,12 +73,14 @@ export default async function GalleryCardPage({ params, searchParams }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
-            alt={ownText || "Метафорическая карта"}
+            alt={card.title || "Метафорическая карта"}
             className="block w-full"
           />
         </div>
 
         <div className="space-y-4">
+          <h1 className="text-xl font-semibold">{card.title || "Без названия"}</h1>
+
           {ownText && <p className="text-gray-700">{ownText}</p>}
 
           <p className="text-sm text-gray-500">Автор: {author}</p>

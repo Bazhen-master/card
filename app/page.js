@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CardGallery from "@/components/CardGallery";
+import { cardTitleReady, withTitle } from "@/lib/settings";
 import { cardSrc, imageSrc } from "@/lib/storage";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
@@ -13,6 +14,7 @@ async function showcaseCards() {
   if (!isSupabaseConfigured) return [];
 
   const supabase = getSupabase();
+  const titleReady = await cardTitleReady(supabase);
 
   const [deckCards, galleryCards] = await Promise.all([
     supabase
@@ -26,7 +28,7 @@ async function showcaseCards() {
       .limit(100),
     supabase
       .from("cards")
-      .select("id, image_url, preview_url, price, profiles(display_name)")
+      .select(withTitle("id, image_url, preview_url, price, profiles(display_name)", titleReady))
       .eq("status", "listed")
       .order("listed_at", { ascending: false })
       .limit(40),
@@ -60,9 +62,9 @@ async function showcaseCards() {
   const fromGallery = (galleryCards.data ?? []).map((card) => ({
     id: card.id,
     src: cardSrc(card),
-    title: card.profiles?.display_name || "Автор",
+    title: card.title || "Без названия",
     price: card.price,
-    note: null,
+    note: card.profiles?.display_name || "Автор",
     href: `/gallery/${card.id}`,
   }));
 

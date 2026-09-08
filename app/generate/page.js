@@ -17,7 +17,7 @@ import {
   generationsTableReady,
   ipHash,
   readSessionId,
-  remainingGenerations,
+  generationAllowance,
 } from "@/lib/generation-limit";
 import {
   getSupabase,
@@ -26,7 +26,8 @@ import {
 } from "@/lib/supabase";
 import { currentProfile } from "@/lib/account";
 import { GENERATION_PRICE, balanceOf } from "@/lib/balance";
-import { formatMoney, formatPrice } from "@/lib/format";
+import { formatDate, formatMoney, formatPrice } from "@/lib/format";
+import { cardTitleReady } from "@/lib/settings";
 import { originalSrc } from "@/lib/storage";
 import { generateCard } from "./actions";
 
@@ -87,7 +88,7 @@ export default async function GeneratePage({ searchParams }) {
 
   const session = readSessionId();
   const profile = await currentProfile();
-  const left = await remainingGenerations(supabase, {
+  const { free: left, periodOver, periodEnd } = await generationAllowance(supabase, {
     session,
     ip: ipHash(),
     profile: profile?.id,
@@ -97,6 +98,15 @@ export default async function GeneratePage({ searchParams }) {
   // баланса нет и быть не может.
   const balance = profile ? await balanceOf(supabase, profile.id) : 0;
   const payable = left <= 0 && profile && balance >= GENERATION_PRICE;
+
+  // Почему бесплатных нет. Разница важная: «на сегодня» само пройдёт к
+  // полуночи, «период закончился» — уже нет.
+  // Поле названия показываем, только когда колонка в базе уже есть.
+  const titleReady = await cardTitleReady(supabase);
+
+  const ranOut = periodOver
+    ? "Бесплатный период закончился."
+    : "Бесплатные на сегодня закончились, новые — после полуночи по Москве.";
 
   const error = searchParams?.error;
   const justCreatedId = searchParams?.card;
@@ -161,6 +171,20 @@ export default async function GeneratePage({ searchParams }) {
       )}
 
       <form action={generateCard} className="max-w-xl space-y-4">
+        {titleReady && (
+          <Field
+            label="Название карты"
+            hint="Под ним карта стоит в галерее. Можно оставить пустым и придумать позже — название меняется в кабинете."
+          >
+            <input
+              name="title"
+              maxLength={60}
+              placeholder="Например: Кораблик в луже"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            />
+          </Field>
+        )}
+
         <Field
           label="Опишите карту"
           hint="Чем подробнее описание, тем ближе результат. До 2000 символов, но лучше работают несколько плотных предложений, чем страница текста."
@@ -221,25 +245,29 @@ export default async function GeneratePage({ searchParams }) {
           </SubmitButton>
           <span className="text-sm text-gray-500">
             {left > 0 ? (
-              `Осталось бесплатных сегодня: ${left} из ${PER_SESSION_PER_DAY}`
+              <>
+                Осталось бесплатных сегодня: {left} из {PER_SESSION_PER_DAY}
+                {periodEnd && (
+                  <span className="text-gray-400">
+                    {" · "}бесплатный период до {formatDate(periodEnd)}
+                  </span>
+                )}
+              </>
             ) : payable ? (
               <>
-                Бесплатные на сегодня закончились, новые — после полуночи по
-                Москве. Следующая сейчас —{" "}
+                {ranOut} Следующая сейчас —{" "}
                 {formatPrice(GENERATION_PRICE)} с баланса, на нём{" "}
                 {formatMoney(balance)}.
               </>
             ) : profile ? (
               <>
-                Бесплатные на сегодня закончились, новые — после полуночи по
-                Москве. Следующая сейчас стоит{" "}
+                {ranOut} Следующая сейчас стоит{" "}
                 {formatPrice(GENERATION_PRICE)}, на балансе{" "}
                 {formatMoney(balance)} — пополнение пока делает владелица сайта.
               </>
             ) : (
               <>
-                Бесплатные на сегодня закончились, новые — после полуночи по
-                Москве.{" "}
+                {ranOut}{" "}
                 <Link href="/login?from=%2Fgenerate" className="text-accent hover:underline">
                   Войдите
                 </Link>

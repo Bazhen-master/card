@@ -11,6 +11,8 @@ import {
   startSession,
 } from "@/lib/account";
 import { safeRedirectPath } from "@/lib/auth";
+import { addEntry } from "@/lib/balance";
+import { cardTitleReady, readSettings } from "@/lib/settings";
 import { MIN_CARD_PRICE, formatPrice, toKopecks } from "@/lib/format";
 import { getSupabase } from "@/lib/supabase";
 
@@ -21,6 +23,29 @@ function back(page, message, email, from) {
   if (email) params.set("email", email);
   if (from) params.set("from", from);
   return `${page}?${params}`;
+}
+
+// Стартовый бонус новому посетителю. Сумма задаётся в /admin/settings, ноль
+// означает «не начислять». Осечка бонуса не отменяет регистрацию: человек уже
+// завёл учётную запись, и ронять её из-за подарка нельзя — причина уходит в
+// лог, начислить можно руками из админки.
+async function grantSignupBonus(profileId) {
+  try {
+    const supabase = getSupabase();
+    const { signup_bonus: bonus } = await readSettings(supabase);
+    if (!bonus) return;
+
+    await addEntry(supabase, {
+      profile: profileId,
+      delta: bonus,
+      // Не topup: настоящих денег за этот бонус никто не платил, и в отчёте
+      // он не должен смешиваться с пополнениями.
+      kind: "admin",
+      comment: "Стартовый бонус при регистрации",
+    });
+  } catch (error) {
+    console.error("Стартовый бонус не начислен:", error?.message);
+  }
 }
 
 export async function registerAction(formData) {
@@ -40,6 +65,7 @@ export async function registerAction(formData) {
     const profile = await createAccount({ email, password });
     await startSession(profile.id);
     await adoptAnonymousHistory(profile.id);
+    await grantSignupBonus(profile.id);
   } catch (error) {
     failure = error?.message || "Не удалось зарегистрироваться";
   }
@@ -139,6 +165,31 @@ export async function publishCardAction(formData) {
 // модерации не требует намеренно: проверяют картинку, а не ценник, и гонять
 // карту через очередь из-за рубля — терять её место на витрине. Купленные
 // карты это не задевает: в purchases цена записана на момент покупки.
+// Название карты автор меняет когда угодно и в любом статусе: под ним карта
+// стоит в галерее, а придумать удачное с первого раза выходит не всегда.
+// Повторной проверки не требует по той же причине, что и цена, — модерация
+// смотрит картинку.
+export async function changeTitleAction(formData) {
+  await inAccount(async (supabase, profile) => {
+    const card = await ownCard(supabase, profile, formData);
+
+    if (!(await cardTitleReady(supabase))) {
+      throw new Error(
+        "В базе ещё нет колонки cards.title — выполните supabase/schema.sql в SQL-редакторе Supabase"
+      );
+    }
+
+    // Пустое название — это «убрать название», а не ошибка.
+    const title = String(formData.get("title") || "").trim().slice(0, 60) || null;
+
+    const { error } = await supabase.from("cards").update({ title }).eq("id", card.id);
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/gallery", "layout");
+    revalidatePath("/");
+  });
+}
+
 export async function changePriceAction(formData) {
   await inAccount(async (supabase, profile) => {
     const card = await ownCard(supabase, profile, formData);

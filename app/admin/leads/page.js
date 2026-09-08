@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AdminHeader from "@/components/AdminHeader";
 import SetupNotice from "@/components/SetupNotice";
-import { TARIFFS } from "@/lib/tariffs";
+import { TARIFF_LABELS } from "@/lib/tariffs";
 import { requireAdmin } from "@/lib/require-admin";
 import {
   getSupabase,
@@ -73,7 +73,7 @@ export default async function AdminLeadsPage() {
             <ul className="space-y-1 text-sm">
               {[...byTariff.entries()].map(([tariff, count]) => (
                 <li key={tariff} className="flex justify-between gap-4">
-                  <span className="text-gray-700">{TARIFFS[tariff] ?? tariff}</span>
+                  <span className="text-gray-700">{TARIFF_LABELS[tariff] ?? tariff}</span>
                   <span className="text-gray-500">{count}</span>
                 </li>
               ))}
@@ -113,7 +113,7 @@ export default async function AdminLeadsPage() {
               <li key={lead.id} className="flex flex-wrap items-baseline justify-between gap-2 p-3">
                 <span className="text-gray-800">{lead.contact}</span>
                 <span className="text-gray-500">
-                  {TARIFFS[lead.tariff] ?? lead.tariff}
+                  {TARIFF_LABELS[lead.tariff] ?? lead.tariff}
                   {lead.decks?.title && (
                     <>
                       {" · "}

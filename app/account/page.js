@@ -7,13 +7,16 @@ import SetupNotice from "@/components/SetupNotice";
 import {
   logoutAction,
   changePriceAction,
+  changeTitleAction,
   publishCardAction,
   saveNameAction,
   withdrawCardAction,
 } from "./actions";
 import { currentProfile } from "@/lib/account";
 import { balanceOf } from "@/lib/balance";
-import { MIN_CARD_PRICE, formatMoney, formatPrice, toRubles } from "@/lib/format";
+import { MIN_CARD_PRICE, formatDate, formatMoney, formatPrice, toRubles } from "@/lib/format";
+import { PER_SESSION_PER_DAY, freePeriodEnd } from "@/lib/generation-limit";
+import { cardTitleReady, readSettings, withTitle } from "@/lib/settings";
 import { originalSrc } from "@/lib/storage";
 import {
   getSupabase,
@@ -41,9 +44,12 @@ export default async function AccountPage({ searchParams }) {
   if (!profile) redirect("/login?from=%2Faccount");
 
   const supabase = getSupabase();
+  // Название показываем и даём править, только когда колонка в базе уже есть.
+  const titleReady = await cardTitleReady(supabase);
+
   const { data: cards } = await supabase
     .from("cards")
-    .select("id, image_url, preview_url, text, price, status, reject_reason")
+    .select(withTitle("id, image_url, preview_url, text, price, status, reject_reason", titleReady))
     .eq("owner_id", profile.id)
     .order("created_at", { ascending: false });
 
@@ -65,6 +71,21 @@ export default async function AccountPage({ searchParams }) {
     .order("created_at", { ascending: false });
 
   const bought = (purchases ?? []).filter((row) => row.cards);
+
+  // Докуда действуют бесплатные генерации. Дату регистрации в профиле сессии
+  // нет — берём отдельным запросом, он же самый дешёвый в этой странице.
+  const { free_period_days: freeDays } = await readSettings(supabase);
+  const { data: registered } = await supabase
+    .from("profiles")
+    .select("created_at")
+    .eq("id", profile.id)
+    .maybeSingle();
+
+  const periodEnd = freePeriodEnd(
+    registered?.created_at ? new Date(registered.created_at) : null,
+    freeDays
+  );
+  const periodOver = Boolean(periodEnd && periodEnd.getTime() <= Date.now());
 
   return (
     <section className="space-y-8">
@@ -89,9 +110,24 @@ export default async function AccountPage({ searchParams }) {
         <p className="text-sm text-gray-500">Баланс</p>
         <p className="text-2xl font-medium text-accent">{formatMoney(balance)}</p>
         <p className="mt-1 text-xs text-gray-400">
-          Баллы тратятся на карты из галереи. Пополнение пока делает владелица
-          сайта вручную — напишите ей. Продали свою карту — деньги придут сюда.
+          Баллы тратятся на карты из галереи и на генерации сверх бесплатных.
+          Пополнение пока делает владелица сайта вручную — напишите ей. Продали
+          свою карту — деньги придут сюда.
         </p>
+        {periodEnd && (
+          <p className="mt-2 text-xs text-gray-500">
+            {periodOver ? (
+              <>
+                Бесплатный период закончился — новые карты рисуются за баллы.
+              </>
+            ) : (
+              <>
+                Бесплатно: {PER_SESSION_PER_DAY} карт в сутки до{" "}
+                {formatDate(periodEnd)}, дальше — за баллы.
+              </>
+            )}
+          </p>
+        )}
       </div>
 
       <form
@@ -196,6 +232,7 @@ export default async function AccountPage({ searchParams }) {
                   <CardTile card={card} ratio="auto" src={originalSrc(card)} />
                 </div>
                 <div className="flex-1 space-y-3 text-sm">
+                  {titleReady && <TitleForm card={card} />}
                   <CardStatus card={card} />
                   <a
                     href={`/api/original/${card.id}?download`}
@@ -291,6 +328,32 @@ function CardStatus({ card }) {
         </p>
       )}
     </div>
+  );
+}
+
+// Название карты — то, под чем её видят в галерее. Меняется в любом статусе:
+// придумать удачное с первого раза выходит не всегда.
+function TitleForm({ card }) {
+  return (
+    <form action={changeTitleAction} className="flex flex-wrap items-end gap-2">
+      <input type="hidden" name="card" value={card.id} />
+      <label className="min-w-[10rem] flex-1 text-xs text-gray-500">
+        Название
+        <input
+          name="title"
+          maxLength={60}
+          defaultValue={card.title ?? ""}
+          placeholder="без названия"
+          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800"
+        />
+      </label>
+      <button
+        type="submit"
+        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:border-accent hover:text-accent"
+      >
+        Сохранить
+      </button>
+    </form>
   );
 }
 

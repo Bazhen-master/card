@@ -2,6 +2,7 @@ import Link from "next/link";
 import CardGallery from "@/components/CardGallery";
 import SetupNotice from "@/components/SetupNotice";
 import { formatPrice } from "@/lib/format";
+import { cardTitleReady, withTitle } from "@/lib/settings";
 import { cardSrc } from "@/lib/storage";
 import {
   getSupabase,
@@ -26,11 +27,12 @@ export default async function GalleryPage() {
   }
 
   const supabase = getSupabase();
+  const titleReady = await cardTitleReady(supabase);
   // Только опубликованные: private и pending видит лишь автор, rejected —
   // автор и админ.
   const { data: cards, error } = await supabase
     .from("cards")
-    .select("id, preview_url, image_url, price, profiles(display_name)")
+    .select(withTitle("id, preview_url, image_url, price, profiles(display_name)", titleReady))
     .eq("status", "listed")
     .order("listed_at", { ascending: false })
     .limit(60);
@@ -66,11 +68,12 @@ export default async function GalleryPage() {
           items={list.map((card) => ({
             id: card.id,
             src: cardSrc(card),
-            // Описание карты (оно же запрос к нейросети) наружу не отдаём —
-            // ни текстом, ни в alt: иначе чужой запрос копируется и
-            // повторяется одним движением. Автор видит своё в кабинете,
-            // владелица сайта — в модерации.
-            title: card.profiles?.display_name || "Автор",
+            // На плитке — название карты, автор приписан к цене. Описание
+            // (оно же запрос к нейросети) наружу не отдаём ни текстом, ни в
+            // alt: иначе чужой запрос копируется одним движением. Автор видит
+            // своё в кабинете, владелица сайта — в модерации.
+            title: card.title || "Без названия",
+            note: card.profiles?.display_name || "Автор",
             price: card.price,
             href: `/gallery/${card.id}`,
           }))}

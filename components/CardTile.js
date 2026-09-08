@@ -12,19 +12,24 @@ import { cardSrc } from "@/lib/storage";
 export default function CardTile({ card, showPrice = false, ratio = "3/4", src }) {
   const cropped = ratio !== "auto";
 
+  // Подпись под картинкой: у карт авторов это название, у карт из колод —
+  // текст, который написала владелица сайта. Названия у них нет, поэтому
+  // порядок именно такой, и старые карты выглядят как раньше.
+  const caption = card.title || card.text;
+
   return (
     <figure className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <div className={cropped ? "aspect-[3/4] bg-cardBg" : "bg-cardBg"}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src || cardSrc(card)}
-          alt={card.text || "Метафорическая карта"}
+          alt={caption || "Метафорическая карта"}
           className={cropped ? "h-full w-full object-cover" : "block w-full"}
         />
       </div>
-      {(card.text || (showPrice && card.price)) && (
+      {(caption || (showPrice && card.price)) && (
         <figcaption className="space-y-1 p-3 text-sm">
-          {card.text && <p className="text-gray-700">{card.text}</p>}
+          {caption && <p className="text-gray-700">{caption}</p>}
           {showPrice && card.price ? (
             <p className="text-accent">{formatPrice(card.price)}</p>
           ) : null}

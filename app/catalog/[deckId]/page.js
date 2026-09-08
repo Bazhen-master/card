@@ -120,24 +120,11 @@ export default async function DeckPage({ params, searchParams }) {
                 </p>
               </div>
             ) : (
-              <div className="flex flex-wrap gap-3">
-                <form action={recordInterest}>
-                  <input type="hidden" name="deck" value={deck.id} />
-                  <input type="hidden" name="tariff" value="deck" />
-                  <SubmitButton pendingLabel="Секунду…">Купить колоду</SubmitButton>
-                </form>
-
-                <form action={recordInterest}>
-                  <input type="hidden" name="deck" value={deck.id} />
-                  <input type="hidden" name="tariff" value="subscription" />
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-accent px-5 py-2.5 text-accent hover:bg-accent/10"
-                  >
-                    Подписка на все колоды
-                  </button>
-                </form>
-              </div>
+              <form action={recordInterest}>
+                <input type="hidden" name="deck" value={deck.id} />
+                <input type="hidden" name="tariff" value="deck" />
+                <SubmitButton pendingLabel="Секунду…">Купить колоду</SubmitButton>
+              </form>
             )}
           </div>
         </div>

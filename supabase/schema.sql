@@ -149,6 +149,14 @@ alter table public.cards
 
 create index if not exists cards_status_idx on public.cards (status, listed_at desc);
 
+-- Название карты. Автор пишет его при создании и меняет в кабинете; под ним
+-- карта стоит в галерее. От cards.text отличается назначением: text у
+-- сгенерированной карты — это запрос к нейросети, он чужим не показывается, а
+-- название показывается всем. Пока колонки нет, сайт работает как раньше:
+-- поле названия просто не появляется.
+alter table public.cards
+  add column if not exists title text;
+
 -- ВНИМАНИЕ: цены (decks.price, cards.price) хранятся В КОПЕЙКАХ. Так решено на
 -- Этапе 6.3: комиссия площадки в 30 % с карты за 3 ₽ в целых рублях не
 -- считается. В формах и на витрине показываются рубли. Перевод существующих
@@ -198,6 +206,19 @@ create index if not exists balance_profile_idx
 
 alter table public.purchases enable row level security;
 alter table public.balance_entries enable row level security;
+
+-- ------------------------------------------------------------- settings ---
+-- Настройки, которые владелица сайта меняет сама в /admin/settings: стартовый
+-- бонус при регистрации и длительность бесплатного периода. Держим их в базе,
+-- а не в переменных окружения, чтобы менять без правки кода и без передеплоя.
+-- Пока таблицы нет, сайт работает на значениях по умолчанию из lib/settings.js.
+create table if not exists public.settings (
+  key         text primary key,
+  value       text not null,
+  updated_at  timestamptz not null default now()
+);
+
+alter table public.settings enable row level security;
 
 -- -------------------------------------------------------------- storage ---
 -- Публичный бакет для картинок карт и обложек колод.

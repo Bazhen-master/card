@@ -5,6 +5,7 @@ import SetupNotice from "@/components/SetupNotice";
 import { approveCard, rejectCard } from "../actions";
 import { formatPrice } from "@/lib/format";
 import { requireAdmin } from "@/lib/require-admin";
+import { cardTitleReady, withTitle } from "@/lib/settings";
 import { cardSrc } from "@/lib/storage";
 import {
   getSupabase,
@@ -29,15 +30,24 @@ export default async function ModerationPage({ searchParams }) {
   }
 
   const supabase = getSupabase();
+  // Название показываем, только если колонка в базе уже есть: схему выполняет
+  // владелица сайта руками, а код приезжает деплоем.
+  const titleReady = await cardTitleReady(supabase);
+
   const { data: pending } = await supabase
     .from("cards")
-    .select("id, preview_url, image_url, text, price, created_at, profiles(display_name, email)")
+    .select(
+      withTitle(
+        "id, preview_url, image_url, text, price, created_at, profiles(display_name, email)",
+        titleReady
+      )
+    )
     .eq("status", "pending")
     .order("created_at", { ascending: true });
 
   const { data: listed } = await supabase
     .from("cards")
-    .select("id, text, price, listed_at, profiles(display_name, email)")
+    .select(withTitle("id, text, price, listed_at, profiles(display_name, email)", titleReady))
     .eq("status", "listed")
     .order("listed_at", { ascending: false })
     .limit(20);
@@ -70,7 +80,10 @@ export default async function ModerationPage({ searchParams }) {
 
                 <div className="flex-1 space-y-3 text-sm">
                   <div>
-                    <p className="text-gray-800">{card.text || "без описания"}</p>
+                    <p className="font-medium text-gray-800">
+                      {card.title || "Без названия"}
+                    </p>
+                    <p className="text-gray-600">{card.text || "без описания"}</p>
                     <p className="text-gray-500">
                       Автор: {card.profiles?.display_name || "без имени"} (
                       {card.profiles?.email}) · цена {formatPrice(card.price)}
