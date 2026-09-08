@@ -4,7 +4,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { buyCardAction } from "../actions";
 import { currentProfile } from "@/lib/account";
 import { balanceOf, hasPurchased } from "@/lib/balance";
-import { formatPrice } from "@/lib/format";
+import { formatMoney, formatPrice } from "@/lib/format";
 import { cardSrc, originalSrc } from "@/lib/storage";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
@@ -101,7 +101,7 @@ export default async function GalleryCardPage({ params, searchParams }) {
                 Купить за {formatPrice(card.price)}
               </SubmitButton>
               <p className="text-xs text-gray-400">
-                На балансе: {formatPrice(balance)}. Списывается с баланса, карта
+                На балансе: {formatMoney(balance)}. Списывается с баланса, карта
                 сразу открывается без знака и в полном размере.
               </p>
             </form>

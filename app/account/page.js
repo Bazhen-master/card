@@ -13,7 +13,7 @@ import {
 } from "./actions";
 import { currentProfile } from "@/lib/account";
 import { balanceOf } from "@/lib/balance";
-import { MIN_CARD_PRICE, formatPrice, toRubles } from "@/lib/format";
+import { MIN_CARD_PRICE, formatMoney, formatPrice, toRubles } from "@/lib/format";
 import { originalSrc } from "@/lib/storage";
 import {
   getSupabase,
@@ -87,7 +87,7 @@ export default async function AccountPage({ searchParams }) {
 
       <div className="rounded-xl border border-gray-200 bg-white p-4">
         <p className="text-sm text-gray-500">Баланс</p>
-        <p className="text-2xl font-medium text-accent">{formatPrice(balance)}</p>
+        <p className="text-2xl font-medium text-accent">{formatMoney(balance)}</p>
         <p className="mt-1 text-xs text-gray-400">
           Баллы тратятся на карты из галереи. Пополнение пока делает владелица
           сайта вручную — напишите ей. Продали свою карту — деньги придут сюда.
@@ -161,7 +161,7 @@ export default async function AccountPage({ searchParams }) {
                   }
                 >
                   {entry.delta > 0 ? "+" : "−"}
-                  {formatPrice(Math.abs(entry.delta))}
+                  {formatMoney(Math.abs(entry.delta))}
                 </span>
               </li>
             ))}

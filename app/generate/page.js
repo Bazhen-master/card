@@ -26,7 +26,7 @@ import {
 } from "@/lib/supabase";
 import { currentProfile } from "@/lib/account";
 import { GENERATION_PRICE, balanceOf } from "@/lib/balance";
-import { formatPrice } from "@/lib/format";
+import { formatMoney, formatPrice } from "@/lib/format";
 import { originalSrc } from "@/lib/storage";
 import { generateCard } from "./actions";
 
@@ -227,14 +227,14 @@ export default async function GeneratePage({ searchParams }) {
                 Бесплатные на сегодня закончились, новые — после полуночи по
                 Москве. Следующая сейчас —{" "}
                 {formatPrice(GENERATION_PRICE)} с баланса, на нём{" "}
-                {formatPrice(balance)}.
+                {formatMoney(balance)}.
               </>
             ) : profile ? (
               <>
                 Бесплатные на сегодня закончились, новые — после полуночи по
                 Москве. Следующая сейчас стоит{" "}
                 {formatPrice(GENERATION_PRICE)}, на балансе{" "}
-                {formatPrice(balance)} — пополнение пока делает владелица сайта.
+                {formatMoney(balance)} — пополнение пока делает владелица сайта.
               </>
             ) : (
               <>

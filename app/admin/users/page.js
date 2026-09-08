@@ -3,7 +3,7 @@ import Banner from "@/components/Banner";
 import SetupNotice from "@/components/SetupNotice";
 import { adjustBalance, toggleBlock } from "../actions";
 import { COMMISSION_PERCENT } from "@/lib/balance";
-import { formatPrice } from "@/lib/format";
+import { formatMoney, formatPrice } from "@/lib/format";
 import { requireAdmin } from "@/lib/require-admin";
 import {
   getSupabase,
@@ -80,7 +80,7 @@ export default async function AdminUsersPage({ searchParams }) {
                   )}
                 </div>
                 <p className="text-lg text-accent">
-                  {formatPrice(balances.get(profile.id) ?? 0)}
+                  {formatMoney(balances.get(profile.id) ?? 0)}
                 </p>
               </div>
 

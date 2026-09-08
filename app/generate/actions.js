@@ -16,7 +16,7 @@ import {
 } from "@/lib/generation-limit";
 import { currentProfile } from "@/lib/account";
 import { GENERATION_PRICE, addEntry, balanceOf } from "@/lib/balance";
-import { formatPrice } from "@/lib/format";
+import { formatMoney, formatPrice } from "@/lib/format";
 import { uploadImageBuffer, uploadOriginalBuffer } from "@/lib/storage";
 import { PREVIEW_UPLOAD, makePreview } from "@/lib/watermark";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -60,7 +60,7 @@ async function chargeForGeneration(supabase, profile) {
       "Бесплатные генерации на сегодня закончились. Следующая стоит " +
         formatPrice(GENERATION_PRICE) +
         ", на балансе " +
-        formatPrice(balance) +
+        formatMoney(balance) +
         " — пополнение пока делает владелица сайта."
     );
   }
