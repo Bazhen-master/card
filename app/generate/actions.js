@@ -59,7 +59,7 @@ async function chargeForGeneration(supabase, profile, periodOver = false) {
     : "Бесплатные генерации на сегодня закончились.";
 
   if (!profile) {
-    throw new Error(
+    throw visible(
       why +
         " Войдите в учётную запись — следующая будет стоить " +
         formatPrice(GENERATION_PRICE) +
@@ -69,7 +69,7 @@ async function chargeForGeneration(supabase, profile, periodOver = false) {
 
   const balance = await balanceOf(supabase, profile.id);
   if (balance < GENERATION_PRICE) {
-    throw new Error(
+    throw visible(
       why +
         " Следующая стоит " +
         formatPrice(GENERATION_PRICE) +
@@ -87,11 +87,32 @@ async function chargeForGeneration(supabase, profile, periodOver = false) {
   });
 }
 
+// Что посетителю говорить можно, а что нельзя.
+//
+// Сообщения вроде «GenAPI: Недостаточно средств» или «проверьте GENAPI_KEY» —
+// разговор с владелицей сайта, а не с человеком, который пришёл нарисовать
+// карту: названия сервисов и чужие финансовые дела ему знать незачем, а помочь
+// он всё равно не может. Поэтому наружу такие осечки выходят одной вежливой
+// строкой, а настоящая причина уходит в лог хостинга.
+//
+// Всё, что посетитель может исправить сам (пустое описание, слишком длинный
+// текст, кончившиеся деньги на его балансе), помечается visible и
+// показывается как есть.
+const VISITOR_FAILURE =
+  "Не получилось нарисовать карту, деньги не списаны — попробуйте, пожалуйста, написать в техподдержку.";
+
+function visible(message) {
+  const error = new Error(message);
+  error.visible = true;
+  return error;
+}
+
 export async function generateCard(formData) {
   let cardId = null;
   let message = null;
   let chargeId = null;
   let refundClient = null;
+  let profileForRefund = null;
 
   try {
     if (!isSupabaseConfigured || !isImageProviderConfigured) {
@@ -100,9 +121,9 @@ export async function generateCard(formData) {
 
     const title = String(formData.get("title") || "").trim().slice(0, MAX_TITLE);
     const prompt = String(formData.get("prompt") || "").trim();
-    if (!prompt) throw new Error("Опишите карту, которую хотите получить");
+    if (!prompt) throw visible("Опишите карту, которую хотите получить");
     if (prompt.length > MAX_PROMPT) {
-      throw new Error(`Описание длиннее ${MAX_PROMPT} символов — сократите его`);
+      throw visible(`Описание длиннее ${MAX_PROMPT} символов — сократите его`);
     }
 
     const requested = String(formData.get("style") || "DEFAULT");
@@ -126,7 +147,10 @@ export async function generateCard(formData) {
       ip,
       profile: profile?.id,
     });
-    if (free <= 0) chargeId = await chargeForGeneration(supabase, profile, periodOver);
+    if (free <= 0) {
+      chargeId = await chargeForGeneration(supabase, profile, periodOver);
+      profileForRefund = profile?.id ?? null;
+    }
 
     const image = await generateImage({ prompt, style, format });
 
@@ -173,11 +197,31 @@ export async function generateCard(formData) {
       await supabase.from("balance_entries").update({ card_id: cardId }).eq("id", chargeId);
     }
   } catch (error) {
-    message = error?.message || "Не удалось сгенерировать карту";
+    const reason = error?.message || "неизвестная причина";
+    message = error?.visible ? reason : VISITOR_FAILURE;
+
+    // Настоящую причину видит владелица сайта в логах хостинга — там же, где
+    // она узнает, что на GenAPI кончились деньги.
+    if (!error?.visible) console.error("Генерация не удалась:", reason);
 
     // Заплатили, но картинки нет — возвращаем деньги, удаляя строку списания.
     if (chargeId && refundClient) {
-      await refundClient.from("balance_entries").delete().eq("id", chargeId);
+      const { error: refundError } = await refundClient
+        .from("balance_entries")
+        .delete()
+        .eq("id", chargeId);
+
+      // Единственный случай, когда человек остаётся без карты и без денег.
+      // Сам он об этом не узнает, поэтому строка в логе намеренно кричащая:
+      // по ней списание находится и снимается руками в /admin/users.
+      if (refundError) {
+        console.error(
+          "ВОЗВРАТ НЕ ПРОШЁЛ: списание", chargeId,
+          "у пользователя", profileForRefund ?? "неизвестен",
+          "осталось на человеке, вернуть вручную в /admin/users. Причина:",
+          refundError.message
+        );
+      }
     }
   }
 
