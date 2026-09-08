@@ -233,6 +233,13 @@ export default async function AccountPage({ searchParams }) {
                 </div>
                 <div className="flex-1 space-y-3 text-sm">
                   {titleReady && <TitleForm card={card} />}
+                  {/* Свой запрос к нейросети автор видит всегда: чужим он не
+                      показывается, но переспросить «а что я тогда написала»
+                      человек должен уметь. Раньше он стоял подписью под
+                      картинкой — с появлением названия там теперь название. */}
+                  {card.text && (
+                    <p className="text-xs text-gray-400">Запрос: {card.text}</p>
+                  )}
                   <CardStatus card={card} />
                   <a
                     href={`/api/original/${card.id}?download`}

@@ -144,7 +144,7 @@ export default async function ModerationPage({ searchParams }) {
             {(listed ?? []).map((card) => (
               <li key={card.id} className="flex items-baseline justify-between gap-4">
                 <Link href={`/gallery/${card.id}`} className="text-accent hover:underline">
-                  {card.text?.slice(0, 60) || "без описания"}
+                  {card.title || card.text?.slice(0, 60) || "без названия"}
                 </Link>
                 <span className="shrink-0 text-gray-400">
                   {card.profiles?.display_name || card.profiles?.email} ·{" "}
