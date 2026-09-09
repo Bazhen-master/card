@@ -263,7 +263,7 @@ export default async function GeneratePage({ searchParams }) {
               <>
                 {ranOut} Следующая сейчас стоит{" "}
                 {formatPrice(GENERATION_PRICE)}, на балансе{" "}
-                {formatMoney(balance)} — пополнение пока делает владелица сайта.
+                {formatMoney(balance)} — пополнение пока делает администратор.
               </>
             ) : (
               <>

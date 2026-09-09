@@ -13,7 +13,7 @@ import {
   withdrawCardAction,
 } from "./actions";
 import { currentProfile } from "@/lib/account";
-import { balanceOf } from "@/lib/balance";
+import { COMMISSION_PERCENT, balanceOf, splitPrice } from "@/lib/balance";
 import { MIN_CARD_PRICE, formatDate, formatMoney, formatPrice, toRubles } from "@/lib/format";
 import { PER_SESSION_PER_DAY, freePeriodEnd } from "@/lib/generation-limit";
 import { cardTitleReady, readSettings, withTitle } from "@/lib/settings";
@@ -111,8 +111,8 @@ export default async function AccountPage({ searchParams }) {
         <p className="text-2xl font-medium text-accent">{formatMoney(balance)}</p>
         <p className="mt-1 text-xs text-gray-400">
           Баллы тратятся на карты из галереи и на генерации сверх бесплатных.
-          Пополнение пока делает владелица сайта вручную — напишите ей. Продали
-          свою карту — деньги придут сюда.
+          Пополнение пока делается вручную — напишите администратору. Продали
+          свою карту — деньги придут сюда за вычетом комиссии площадки.
         </p>
         {periodEnd && (
           <p className="mt-2 text-xs text-gray-500">
@@ -324,8 +324,11 @@ function CardStatus({ card }) {
             Выставить в галерею
           </button>
           <span className="w-full text-xs text-gray-400">
-            Минимум {formatPrice(MIN_CARD_PRICE)}. Карта появится в галерее
-            после проверки, с водяным знаком; покупатель получит её без знака.
+            Минимум {formatPrice(MIN_CARD_PRICE)}. Комиссия площадки —{" "}
+            {COMMISSION_PERCENT} %: с карты за {formatPrice(MIN_CARD_PRICE)} вам
+            придёт {formatMoney(splitPrice(MIN_CARD_PRICE).author)}. Карта
+            появится в галерее после проверки, с водяным знаком; покупатель
+            получит её без знака.
           </span>
         </form>
       ) : (
@@ -388,8 +391,10 @@ function PriceForm({ card }) {
         Изменить цену
       </button>
       <span className="w-full text-xs text-gray-400">
-        Сейчас {formatPrice(card.price)}. Новая цена встаёт сразу, повторной
-        проверки не требует; уже купленные карты остаются по старой цене.
+        Сейчас {formatPrice(card.price)}: комиссия площадки {COMMISSION_PERCENT} %,
+        вам с продажи — {formatMoney(splitPrice(card.price ?? 0).author)}. Новая
+        цена встаёт сразу, повторной проверки не требует; уже купленные карты
+        остаются по старой цене.
       </span>
     </form>
   );

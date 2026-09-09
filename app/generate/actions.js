@@ -75,7 +75,7 @@ async function chargeForGeneration(supabase, profile, periodOver = false) {
         formatPrice(GENERATION_PRICE) +
         ", на балансе " +
         formatMoney(balance) +
-        " — пополнение пока делает владелица сайта."
+        " — пополнение пока делает администратор."
     );
   }
 

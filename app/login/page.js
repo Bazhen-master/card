@@ -81,7 +81,7 @@ export default async function LoginPage({ searchParams }) {
       </p>
       <p className="mt-2 text-xs text-gray-400">
         Восстановления пароля пока нет — оно появится вместе с отправкой писем.
-        Забыли пароль — напишите владелице сайта.
+        Забыли пароль — напишите администратору.
       </p>
     </section>
   );
