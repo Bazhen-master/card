@@ -22,6 +22,9 @@ export async function GET(_request, { params }) {
     .download(name);
 
   if (error || !data) {
+    // Настоящих причин тут две: файла правда нет или хранилище не ответило
+    // (обрыв связи, вышло время). Посетителю разницы нет, владелице — есть.
+    console.error(`Картинка ${name} не отдана:`, error?.message || "хранилище вернуло пусто");
     return new Response("Картинка не найдена", { status: 404 });
   }
 

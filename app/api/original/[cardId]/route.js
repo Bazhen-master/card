@@ -64,7 +64,10 @@ export async function GET(request, { params }) {
   }
 
   const { data, error: fileError } = await downloadCardImage(supabase, card.image_url);
-  if (fileError || !data) return new Response("Картинка не найдена", { status: 404 });
+  if (fileError || !data) {
+    console.error(`Оригинал карты ${id} не отдан:`, fileError?.message || "хранилище вернуло пусто");
+    return new Response("Картинка не найдена", { status: 404 });
+  }
 
   const download = new URL(request.url).searchParams.has("download");
   const type = data.type || "image/png";
