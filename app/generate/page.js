@@ -111,13 +111,28 @@ export default async function GeneratePage({ searchParams }) {
   const error = searchParams?.error;
   const justCreatedId = searchParams?.card;
 
-  const { data: justCreated } = justCreatedId
-    ? await supabase
-        .from("cards")
-        .select("id, image_url, text")
-        .eq("id", justCreatedId)
-        .maybeSingle()
-    : { data: null };
+  // Номер карты приходит из адреса, а номера опубликованных карт видны в
+  // ссылках галереи. Поэтому карту ищем только среди своих: иначе подстановкой
+  // чужого номера можно было прочитать чужой запрос к нейросети.
+  const { data: justCreated } = !justCreatedId
+    ? { data: null }
+    : profile
+      ? await supabase
+          .from("cards")
+          .select("id, image_url, text")
+          .eq("id", justCreatedId)
+          .eq("owner_id", profile.id)
+          .maybeSingle()
+      : session
+        ? await supabase
+            .from("generations")
+            .select("cards(id, image_url, text)")
+            .eq("card_id", justCreatedId)
+            .eq("session_id", session)
+            .limit(1)
+            .maybeSingle()
+            .then(({ data }) => ({ data: data?.cards ?? null }))
+        : { data: null };
 
   // У вошедшего история берётся из аккаунта и переживает смену браузера,
   // у гостя — из журнала по cookie, как и раньше.

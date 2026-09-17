@@ -64,9 +64,12 @@ export default async function AccountPage({ searchParams }) {
     .order("created_at", { ascending: false })
     .limit(20);
 
+  // Запрос к нейросети (cards.text) у купленной карты не берём вовсе: покупатель
+  // получил картинку, а не рецепт. Если его выбрать, плитка поставит его
+  // подписью у карт без названия — так и было.
   const { data: purchases } = await supabase
     .from("purchases")
-    .select("id, price, created_at, cards(id, image_url, preview_url, text)")
+    .select(`id, price, created_at, cards(${withTitle("id, image_url, preview_url", titleReady)})`)
     .eq("buyer_id", profile.id)
     .order("created_at", { ascending: false });
 
